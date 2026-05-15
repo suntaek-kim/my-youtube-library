@@ -2,7 +2,7 @@
    나의 유튜브 서재 v2 - 스크립트
    - 영상 데이터를 브라우저 localStorage에 저장
    - 카테고리 필터링, 추가/편집/삭제, 클릭 시 재생 처리
-   - (v2: 카드 마크업을 새 디자인 시스템에 맞춰 업데이트)
+   - (v2.1: 검색 기능 추가 - 200ms 디바운스, 카테고리와 AND 조건)
    ============================================================ */
 
 
@@ -29,6 +29,7 @@ const sampleData = [
 // 전역 상태
 let library = loadLibrary();    // 영상 목록 배열
 let currentCategory = '전체';   // 현재 선택된 카테고리
+let currentSearch = '';         // 현재 검색어 (소문자 변환 전 원본)
 let editingId = null;           // 편집 중인 영상 id (없으면 null = 새로 추가 모드)
 
 // localStorage에서 영상 목록을 읽어옴 (없거나 깨졌으면 샘플 데이터)
@@ -53,7 +54,37 @@ function saveLibrary() {
 
 
 /* ============================================================
-   2. 유튜브 URL → videoId 추출
+   2. 유틸리티 - 디바운스 & 검색 매칭
+   ============================================================ */
+
+/**
+ * debounce(fn, ms): 마지막 호출 후 ms 동안 추가 호출이 없을 때만 fn을 실행.
+ * 검색창에 빠르게 타이핑할 때 매 키 입력마다 필터링하지 않도록 사용.
+ */
+function debounce(fn, ms) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+/**
+ * matchesSearch(video, query): 영상이 검색어와 매치되는지 검사.
+ * 검색 대상 4개 필드(title / channel / note / category) 중
+ * 하나라도 검색어를 포함하면 true. 대소문자 무시.
+ */
+function matchesSearch(video, query) {
+  if (!query) return true;                                // 검색어 없으면 모두 통과
+  const q = query.toLowerCase();
+  return [video.title, video.channel, video.note, video.category]
+    .filter(Boolean)                                      // null/undefined 제외
+    .some(field => field.toLowerCase().includes(q));
+}
+
+
+/* ============================================================
+   3. 유튜브 URL → videoId 추출
    ============================================================ */
 function extractVideoId(url) {
   if (!url) return null;
@@ -70,8 +101,8 @@ function extractVideoId(url) {
 
 
 /* ============================================================
-   3. 렌더링 - 헤더 메타 줄 ("Vol. 03 · N Films · Spring, 2026")
-   - 영상 개수만 동적으로, 나머지는 정적 라벨
+   4. 렌더링 - 헤더 메타 줄 ("Vol. 03 · N Films · Spring, 2026")
+   - 메타는 전체 라이브러리 기준 (검색에 영향 받지 않음)
    ============================================================ */
 function renderMeta() {
   const meta = document.getElementById('metaRow');
@@ -88,24 +119,29 @@ function renderMeta() {
 
 
 /* ============================================================
-   4. 렌더링 - 카테고리 탭
+   5. 렌더링 - 카테고리 탭
+   - 카테고리 목록은 전체 라이브러리 기준 (탭 자체는 사라지지 않음)
+   - 카운트(숫자)는 검색을 반영해 줄어듦
    ============================================================ */
 function renderCategories() {
   const nav = document.getElementById('categories');
+
+  // 검색을 적용한 영상 목록 (카운트 계산용)
+  const searchFiltered = library.filter(v => matchesSearch(v, currentSearch));
 
   // '전체' + 영상에 등록된 모든 카테고리 (중복 제거)
   const categories = ['전체', ...new Set(library.map(v => v.category).filter(Boolean))];
 
   nav.innerHTML = categories.map(cat => {
     const count = cat === '전체'
-      ? library.length
-      : library.filter(v => v.category === cat).length;
+      ? searchFiltered.length
+      : searchFiltered.filter(v => v.category === cat).length;
     const active = cat === currentCategory ? 'active' : '';
     const ariaSelected = cat === currentCategory ? 'true' : 'false';
     return `<button class="cat-btn ${active}" role="tab" aria-selected="${ariaSelected}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}<span class="count">(${count})</span></button>`;
   }).join('');
 
-  // 카테고리 버튼 클릭 → 필터 변경
+  // 카테고리 버튼 클릭 → 필터 변경 (검색어는 유지)
   nav.querySelectorAll('.cat-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       currentCategory = btn.dataset.category;
@@ -122,7 +158,9 @@ function renderCategories() {
 
 
 /* ============================================================
-   5. 렌더링 - 영상 카드 그리드
+   6. 렌더링 - 영상 카드 그리드
+   - 카테고리 + 검색 AND 조건으로 필터링
+   - 빈 상태 메시지는 검색 여부에 따라 분기
    ============================================================ */
 
 // 재생 버튼 안에 들어갈 SVG 아이콘 (▶)
@@ -132,13 +170,16 @@ function renderVideos() {
   const grid = document.getElementById('videoGrid');
   const empty = document.getElementById('emptyState');
 
-  // 현재 카테고리에 해당하는 영상만 필터
-  const filtered = currentCategory === '전체'
-    ? library
-    : library.filter(v => v.category === currentCategory);
+  // 카테고리 + 검색 AND 조건으로 필터
+  const filtered = library
+    .filter(v => currentCategory === '전체' || v.category === currentCategory)
+    .filter(v => matchesSearch(v, currentSearch));
 
-  // 결과가 없으면 빈 상태 메시지 표시
+  // 결과가 없으면 빈 상태 메시지 표시 (검색 여부에 따라 다른 문구)
   if (filtered.length === 0) {
+    empty.textContent = currentSearch
+      ? '찾으시는 영상이 책장에 없어요. 다른 키워드로 찾아보세요.'
+      : '이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.';
     grid.style.display = 'none';
     empty.style.display = 'block';
     return;
@@ -174,7 +215,6 @@ function renderVideos() {
   `).join('');
 
   // 썸네일 클릭 → 그 자리에 iframe을 끼워넣어 영상 재생
-  // .playing 클래스도 추가해서 그라디언트/재생버튼을 깔끔히 숨김
   grid.querySelectorAll('.thumbnail-wrapper').forEach(wrapper => {
     wrapper.addEventListener('click', () => {
       const vid = wrapper.dataset.videoId;
@@ -205,7 +245,7 @@ function renderVideos() {
 
 
 /* ============================================================
-   6. HTML 이스케이프 (XSS 방지)
+   7. HTML 이스케이프 (XSS 방지)
    ============================================================ */
 function escapeHtml(str) {
   if (!str) return '';
@@ -216,7 +256,7 @@ function escapeHtml(str) {
 
 
 /* ============================================================
-   7. 모달 - 열기 / 닫기
+   8. 모달 - 열기 / 닫기
    ============================================================ */
 function openModal(id = null) {
   editingId = id;
@@ -254,7 +294,7 @@ function closeModal() {
 
 
 /* ============================================================
-   8. 영상 저장 (추가 또는 편집)
+   9. 영상 저장 (추가 또는 편집)
    ============================================================ */
 function saveVideo() {
   const url      = document.getElementById('urlInput').value.trim();
@@ -298,7 +338,7 @@ function saveVideo() {
 
 
 /* ============================================================
-   9. 영상 삭제 (페이드 아웃 → 실제 제거)
+   10. 영상 삭제 (페이드 아웃 → 실제 제거)
    ============================================================ */
 function deleteVideo(id) {
   // 먼저 카드에 .deleting 클래스를 줘서 사라지는 애니메이션 실행
@@ -323,7 +363,41 @@ function deleteVideo(id) {
 
 
 /* ============================================================
-   10. 이벤트 바인딩 (모달, 키보드 등)
+   11. 검색 이벤트 (200ms 디바운스)
+   - 입력할 때마다: .has-value 클래스 즉시 토글 (X 버튼 표시)
+   - 디바운스 후: currentSearch 갱신 + 카테고리 카운트와 카드 그리드 재렌더
+   ============================================================ */
+const searchInput   = document.getElementById('searchInput');
+const searchClear   = document.getElementById('searchClear');
+const searchWrapper = document.getElementById('searchWrapper');
+
+// 디바운스된 실제 필터링 함수 (200ms)
+const applySearch = debounce((value) => {
+  currentSearch = value;
+  renderCategories();
+  renderVideos();
+}, 200);
+
+// 입력 이벤트: X 버튼 표시는 즉시, 필터링은 디바운스
+searchInput.addEventListener('input', () => {
+  const value = searchInput.value;
+  searchWrapper.classList.toggle('has-value', value.length > 0);
+  applySearch(value);
+});
+
+// X 버튼 클릭 → 입력 비우고 즉시 검색 초기화 (디바운스 우회)
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchWrapper.classList.remove('has-value');
+  currentSearch = '';
+  renderCategories();
+  renderVideos();
+  searchInput.focus();
+});
+
+
+/* ============================================================
+   12. 모달 이벤트 (열기, 닫기, 키보드)
    ============================================================ */
 
 // FAB(+) 버튼 → 새 영상 모달 열기
@@ -345,7 +419,7 @@ document.addEventListener('keydown', (e) => {
 
 
 /* ============================================================
-   11. URL 입력칸에서 포커스를 빼면 → oEmbed로 제목/채널 자동 채우기
+   13. URL 입력칸에서 포커스를 빼면 → oEmbed로 제목/채널 자동 채우기
    ============================================================ */
 document.getElementById('urlInput').addEventListener('blur', async () => {
   const url     = document.getElementById('urlInput').value.trim();
@@ -369,7 +443,7 @@ document.getElementById('urlInput').addEventListener('blur', async () => {
 
 
 /* ============================================================
-   12. 초기 렌더
+   14. 초기 렌더
    ============================================================ */
 saveLibrary();        // 첫 방문 시 샘플 데이터를 localStorage에도 기록
 renderMeta();

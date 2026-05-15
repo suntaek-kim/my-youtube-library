@@ -37,6 +37,29 @@
     </header>
 
     <!-- ============================================
+         검색창 (실시간 필터링, 200ms 디바운스)
+         좌측: 돋보기 SVG (장식)
+         우측: X 버튼 (입력값 있을 때만 표시)
+         ============================================ -->
+    <div class="search-wrapper" id="searchWrapper">
+      <svg class="search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+        <circle cx="11" cy="11" r="7"/>
+        <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+      <input type="text" class="search-input" id="searchInput"
+             placeholder="영상 제목, 채널, 코멘트로 검색..." autocomplete="off">
+      <button class="search-clear" id="searchClear" type="button"
+              aria-label="검색 초기화" title="검색 초기화">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- ============================================
          카테고리 네비게이션 (JS로 동적 생성)
          ============================================ -->
     <nav class="categories" id="categories" role="tablist" aria-label="카테고리">

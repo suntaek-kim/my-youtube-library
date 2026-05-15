@@ -255,7 +255,84 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   5. 영상 카드 그리드 (3열 → 반응형)
+   5. 검색창 (실시간 필터링, 200ms 디바운스)
+   - 좌측: 돋보기 SVG (장식, 클릭 통과)
+   - 우측: X 버튼 (.has-value 클래스가 있을 때만 표시)
+   ============================================================ */
+.search-wrapper {
+  max-width: 500px;
+  margin: 24px auto 0;
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 48px;                  /* 좌우 아이콘 자리 */
+  border: 1px solid var(--line-normal);
+  background: var(--background-elevated-normal);
+  font-family: inherit;
+  font-size: 14px;
+  color: var(--label-strong);
+  border-radius: var(--radius-12);
+  transition: border-color 180ms var(--ease),
+              box-shadow 180ms var(--ease);
+}
+.search-input::placeholder {
+  color: var(--label-assistive);
+}
+.search-input:focus {
+  outline: none;
+  border-color: var(--primary-strong);
+  box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.10);   /* 옅은 블루 포커스 링 */
+}
+
+/* 좌측 돋보기 아이콘 (클릭은 input으로 통과) */
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  color: var(--label-assistive);
+  pointer-events: none;
+}
+
+/* 우측 X 버튼 - 기본 숨김, .has-value일 때만 표시 */
+.search-clear {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--label-alternative);
+  cursor: pointer;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  transition: background 150ms var(--ease), color 150ms var(--ease);
+  padding: 0;
+}
+.search-clear svg {
+  width: 16px;
+  height: 16px;
+}
+.search-clear:hover {
+  background: var(--fill-normal);
+  color: var(--label-strong);
+}
+.search-wrapper.has-value .search-clear {
+  display: inline-flex;
+}
+
+
+/* ============================================================
+   6. 영상 카드 그리드 (3열 → 반응형)
    ============================================================ */
 .video-grid {
   display: grid;
@@ -309,7 +386,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   6. 카드 - 썸네일 + 재생 버튼
+   7. 카드 - 썸네일 + 재생 버튼
    ============================================================ */
 .thumbnail-wrapper {
   position: relative;
@@ -370,7 +447,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   7. 카드 - 본문 (제목, 채널, 노트, 액션)
+   8. 카드 - 본문 (제목, 채널, 노트, 액션)
    ============================================================ */
 .card-body {
   padding: 24px 24px 28px;
@@ -485,7 +562,8 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   8. 빈 상태 메시지
+   9. 빈 상태 메시지
+   - 텍스트는 JS가 상황(검색 여부)에 따라 갱신
    ============================================================ */
 .empty-state {
   text-align: center;
@@ -498,7 +576,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   9. FAB (Floating Action Button) - 블루 글로우
+   10. FAB (Floating Action Button) - 블루 글로우
    ============================================================ */
 .add-fab {
   position: fixed;
@@ -542,7 +620,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   10. 푸터 (장식적 마무리)
+   11. 푸터 (장식적 마무리)
    ============================================================ */
 .footnote {
   text-align: center;
@@ -565,7 +643,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   11. 모달 (영상 추가/편집)
+   12. 모달 (영상 추가/편집)
    ============================================================ */
 .modal-backdrop {
   position: fixed;
@@ -624,7 +702,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   12. 모달 - 폼 요소
+   13. 모달 - 폼 요소
    ============================================================ */
 .form-group {
   margin-bottom: 20px;
@@ -675,7 +753,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   13. 모달 - 버튼 (취소 / 저장)
+   14. 모달 - 버튼 (취소 / 저장)
    ============================================================ */
 .modal-actions {
   display: flex;
@@ -714,7 +792,7 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   14. 반응형
+   15. 반응형
    - 태블릿(920px 이하): 2열 그리드, 헤더 축소
    - 모바일(600px 이하): 1열, 카테고리 가로 스크롤
    ============================================================ */
