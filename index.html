@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>나의 유튜브 서재</title>
+
+  <!-- 외부 폰트 (Fraunces / Nanum Myeongjo / IBM Plex Sans KR) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Nanum+Myeongjo:wght@400;700;800&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap"
+    rel="stylesheet">
+
+  <!-- 외부 스타일시트 -->
+  <link rel="stylesheet" href="style.css">
+
+  <!-- 외부 스크립트 (defer: HTML 파싱이 끝난 뒤 실행) -->
+  <script src="script.js" defer></script>
+</head>
+<body>
+
+  <!-- ============================================
+       헤더: 사이트 제목과 부제
+       ============================================ -->
+  <header>
+    <div class="site-tag">A Personal Curation</div>
+    <h1>나의 유튜브 <span class="accent">서재</span></h1>
+    <p class="subtitle">내가 사랑하는 영상들을 한 권의 책처럼 모아두는 곳</p>
+  </header>
+
+  <!-- ============================================
+       카테고리 네비게이션 (JS로 동적 생성)
+       ============================================ -->
+  <nav class="categories" id="categories">
+    <!-- script.js의 renderCategories()에서 채움 -->
+  </nav>
+
+  <!-- ============================================
+       메인: 영상 카드 그리드 + 빈 상태 메시지
+       ============================================ -->
+  <main>
+    <div class="video-grid" id="videoGrid">
+      <!-- script.js의 renderVideos()에서 채움 -->
+    </div>
+    <div class="empty-state" id="emptyState" style="display:none;">
+      이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.
+    </div>
+  </main>
+
+  <!-- 새 영상 추가용 떠다니는 + 버튼 -->
+  <button class="add-fab" id="addFab" title="새 영상 추가">+</button>
+
+  <!-- ============================================
+       추가/편집 모달
+       ============================================ -->
+  <div class="modal-backdrop" id="modalBackdrop">
+    <div class="modal">
+      <h2 class="modal-title" id="modalTitle">새 영상 더하기</h2>
+      <p class="modal-subtitle">서재에 한 권을 더해주세요</p>
+
+      <!-- 유튜브 URL 입력 (blur 시 oEmbed로 제목 자동 채움) -->
+      <div class="form-group">
+        <label for="urlInput">유튜브 URL</label>
+        <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
+        <div class="hint">유튜브 영상 주소를 그대로 붙여넣으세요</div>
+      </div>
+
+      <div class="form-group">
+        <label for="titleInput">제목</label>
+        <input type="text" id="titleInput" placeholder="영상 제목">
+      </div>
+
+      <div class="form-group">
+        <label for="channelInput">채널명</label>
+        <input type="text" id="channelInput" placeholder="채널명">
+      </div>
+
+      <!-- 카테고리: 기존 목록은 datalist로 자동완성 -->
+      <div class="form-group">
+        <label for="categoryInput">카테고리</label>
+        <input type="text" id="categoryInput" placeholder="예: 음악, 다큐, 강연, 일상..." list="categoryList">
+        <datalist id="categoryList"></datalist>
+        <div class="hint">새 카테고리를 입력하거나 기존 카테고리 선택</div>
+      </div>
+
+      <div class="form-group">
+        <label for="noteInput">왜 이 영상을 골랐나요?</label>
+        <textarea id="noteInput" placeholder="이 영상을 추천하는 이유, 인상 깊었던 부분, 나만의 코멘트..."></textarea>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="cancelBtn">취소</button>
+        <button class="btn btn-primary" id="saveBtn">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       푸터
+       ============================================ -->
+  <footer>
+    Made with care · 나만의 영상 큐레이션
+  </footer>
+
+</body>
+</html>
