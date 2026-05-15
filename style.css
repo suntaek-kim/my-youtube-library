@@ -792,7 +792,105 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   15. 반응형
+   15. 관리자 모드 - 배지 + 가시성 제어
+   - 평소(방문자 모드): + FAB, 카드 편집/삭제, 배지 모두 숨김
+   - body.admin-mode 시: 모두 표시
+   - body 클래스 하나만 토글하면 모든 UI가 알아서 바뀜
+   ============================================================ */
+
+/* 평소(방문자 모드)엔 모두 숨김 */
+.add-fab,
+.card-actions,
+.admin-badge {
+  display: none;
+}
+
+/* 관리자 모드일 때만 표시 (specificity가 더 높아 위 규칙을 이김) */
+body.admin-mode .add-fab      { display: flex; }
+body.admin-mode .card-actions { display: flex; }
+body.admin-mode .admin-badge  { display: inline-flex; }
+
+/* 관리자 배지 (우측 상단 fixed, 알약 모양) */
+.admin-badge {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--background-elevated-normal);
+  border: 1px solid var(--line-normal);
+  border-radius: 999px;            /* 알약 모양 */
+  box-shadow: var(--shadow-normal-small);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-strong);
+  z-index: 60;                     /* FAB(50)보다 위, 모달(100)보다 아래 */
+}
+
+.admin-badge-icon {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.admin-badge-label {
+  letter-spacing: -0.01em;
+}
+
+.admin-badge-divider {
+  color: var(--label-assistive);
+  margin: 0 2px;
+}
+
+.admin-badge-logout {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--primary-strong);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 0;
+  letter-spacing: -0.01em;
+  transition: color 150ms var(--ease);
+}
+.admin-badge-logout:hover {
+  color: var(--primary-heavy);
+  text-decoration: underline;
+}
+
+
+/* ============================================================
+   16. 비밀번호 입력 모달 - 흔들림 애니메이션 + 에러 메시지
+   ============================================================ */
+
+/* 잘못된 비밀번호 입력 시 input에 0.4초 동안 흔들림 효과 */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%      { transform: translateX(-8px); }
+  40%      { transform: translateX(8px); }
+  60%      { transform: translateX(-6px); }
+  80%      { transform: translateX(6px); }
+}
+
+.form-group input.shake {
+  animation: shake 0.4s var(--ease);
+  border-color: var(--primary-strong);
+}
+
+/* 에러 메시지 (입력칸 아래) */
+.error-message {
+  color: #D6263D;                  /* 경고 빨강 */
+  font-size: 12px;
+  margin-top: 6px;
+  min-height: 16px;                /* 표시/숨김 시 layout shift 방지 */
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+
+/* ============================================================
+   17. 반응형
    - 태블릿(920px 이하): 2열 그리드, 헤더 축소
    - 모바일(600px 이하): 1열, 카테고리 가로 스크롤
    ============================================================ */

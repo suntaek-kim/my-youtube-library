@@ -1,8 +1,8 @@
 /* ============================================================
    나의 유튜브 서재 v2 - 스크립트
    - 영상 데이터를 브라우저 localStorage에 저장
-   - 카테고리 필터링, 추가/편집/삭제, 클릭 시 재생 처리
-   - (v2.1: 검색 기능 추가 - 200ms 디바운스, 카테고리와 AND 조건)
+   - 카테고리 필터링, 검색, 추가/편집/삭제, 클릭 시 재생
+   - (v2.2: 관리자 모드 추가 - 비밀번호 게이트, sessionStorage)
    ============================================================ */
 
 
@@ -161,6 +161,8 @@ function renderCategories() {
    6. 렌더링 - 영상 카드 그리드
    - 카테고리 + 검색 AND 조건으로 필터링
    - 빈 상태 메시지는 검색 여부에 따라 분기
+   - 편집/삭제 버튼은 마크업엔 항상 포함, 가시성은 CSS가 제어
+     (body.admin-mode일 때만 보임)
    ============================================================ */
 
 // 재생 버튼 안에 들어갈 SVG 아이콘 (▶)
@@ -256,7 +258,7 @@ function escapeHtml(str) {
 
 
 /* ============================================================
-   8. 모달 - 열기 / 닫기
+   8. 모달 - 열기 / 닫기 (영상 추가/편집)
    ============================================================ */
 function openModal(id = null) {
   editingId = id;
@@ -364,8 +366,6 @@ function deleteVideo(id) {
 
 /* ============================================================
    11. 검색 이벤트 (200ms 디바운스)
-   - 입력할 때마다: .has-value 클래스 즉시 토글 (X 버튼 표시)
-   - 디바운스 후: currentSearch 갱신 + 카테고리 카운트와 카드 그리드 재렌더
    ============================================================ */
 const searchInput   = document.getElementById('searchInput');
 const searchClear   = document.getElementById('searchClear');
@@ -397,7 +397,9 @@ searchClear.addEventListener('click', () => {
 
 
 /* ============================================================
-   12. 모달 이벤트 (열기, 닫기, 키보드)
+   12. 모달 이벤트 (열기/닫기, ESC, 단축키)
+   - ESC: 영상 모달 + 비밀번호 모달 둘 다 닫기
+   - Ctrl+Shift+A: 비밀번호 모달 열기 (이미 관리자면 무시됨)
    ============================================================ */
 
 // FAB(+) 버튼 → 새 영상 모달 열기
@@ -412,9 +414,18 @@ document.getElementById('modalBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'modalBackdrop') closeModal();
 });
 
-// ESC 키 → 모달 닫기
+// 키보드 이벤트 (전역)
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') closeModal();
+  // ESC → 두 모달 모두 닫기
+  if (e.key === 'Escape') {
+    closeModal();
+    closePasswordModal();
+  }
+  // Ctrl + Shift + A → 비밀번호 모달 열기 (관리자 모드 진입)
+  if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
+    e.preventDefault();
+    openPasswordModal();
+  }
 });
 
 
@@ -443,9 +454,112 @@ document.getElementById('urlInput').addEventListener('blur', async () => {
 
 
 /* ============================================================
-   14. 초기 렌더
+   14. 관리자 모드 (방문자 모드 ↔ 관리자 모드 토글)
+
+   ⚠️ 보안 알림:
+   이 비밀번호 게이트는 클라이언트 사이드 정적 사이트용이라
+   "방문자가 실수로 +버튼을 누르는 걸 막는" 가벼운 게이트일 뿐입니다.
+   누구나 script.js를 보면 비밀번호를 알 수 있고, 콘솔에서 우회도 가능.
+   진짜 보안이 필요하면 백엔드 + 진짜 인증(Firebase Auth 등)이 필요해요.
+   ============================================================ */
+
+const ADMIN_PASSWORD = 'library2026';                       // ← 비밀번호 (바꾸려면 여기만)
+const ADMIN_STORAGE_KEY = 'myYoutubeLibrary_admin';
+let isAdmin = false;
+
+// 페이지 로드 시 관리자 상태 복원 (sessionStorage 기준)
+function checkAdminMode() {
+  isAdmin = sessionStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
+  document.body.classList.toggle('admin-mode', isAdmin);
+}
+
+// 관리자 모드 진입 (성공 시)
+function enterAdminMode() {
+  isAdmin = true;
+  sessionStorage.setItem(ADMIN_STORAGE_KEY, 'true');
+  document.body.classList.add('admin-mode');
+}
+
+// 관리자 모드 종료 (로그아웃)
+// 1) sessionStorage 제거
+// 2) URL의 ?admin=true 파라미터도 정리 (없으면 새로고침 후 모달이 또 뜸)
+// 3) 새로고침으로 깔끔한 상태 보장
+function exitAdminMode() {
+  sessionStorage.removeItem(ADMIN_STORAGE_KEY);
+  const url = new URL(window.location.href);
+  url.searchParams.delete('admin');
+  window.history.replaceState({}, '', url);
+  window.location.reload();
+}
+
+// 비밀번호 모달 - 열기 / 닫기
+function openPasswordModal() {
+  if (isAdmin) return;                                      // 이미 관리자면 무시
+  const modal = document.getElementById('passwordModalBackdrop');
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+  input.value = '';
+  error.textContent = '';
+  input.classList.remove('shake');
+  modal.classList.add('active');
+  setTimeout(() => input.focus(), 100);
+}
+
+function closePasswordModal() {
+  document.getElementById('passwordModalBackdrop').classList.remove('active');
+}
+
+// 비밀번호 검증
+function submitPassword() {
+  const input = document.getElementById('passwordInput');
+  const error = document.getElementById('passwordError');
+
+  if (input.value === ADMIN_PASSWORD) {
+    enterAdminMode();
+    closePasswordModal();
+  } else {
+    // 흔들림 애니메이션 + 에러 메시지
+    input.classList.add('shake');
+    error.textContent = '비밀번호가 맞지 않아요.';
+    setTimeout(() => input.classList.remove('shake'), 400);
+    input.select();
+  }
+}
+
+// 비밀번호 모달 이벤트 바인딩
+document.getElementById('passwordSubmitBtn').addEventListener('click', submitPassword);
+document.getElementById('passwordCancelBtn').addEventListener('click', closePasswordModal);
+
+// Enter 키 → 제출, 다른 키 입력 시 에러 메시지 자동 제거
+document.getElementById('passwordInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    submitPassword();
+  } else if (e.key !== 'Escape') {
+    document.getElementById('passwordError').textContent = '';
+  }
+});
+
+// 모달 백드롭 클릭 → 닫기
+document.getElementById('passwordModalBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'passwordModalBackdrop') closePasswordModal();
+});
+
+// 배지의 "로그아웃" 버튼
+document.getElementById('adminLogout').addEventListener('click', exitAdminMode);
+
+
+/* ============================================================
+   15. 초기 렌더 + 관리자 모드 체크
    ============================================================ */
 saveLibrary();        // 첫 방문 시 샘플 데이터를 localStorage에도 기록
+checkAdminMode();     // sessionStorage 기준으로 관리자 모드 복원
 renderMeta();
 renderCategories();
 renderVideos();
+
+// URL에 ?admin=true 있으면 비밀번호 모달 자동 열기
+// (이미 관리자면 openPasswordModal 안에서 무시됨)
+if (new URLSearchParams(window.location.search).get('admin') === 'true') {
+  openPasswordModal();
+}

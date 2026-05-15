@@ -89,6 +89,17 @@
 
   </div>
 
+  <!-- ============================================
+       관리자 모드 배지 (관리자 모드일 때만 표시)
+       우측 상단 fixed, body.admin-mode가 있을 때만 보임
+       ============================================ -->
+  <div class="admin-badge" id="adminBadge">
+    <span class="admin-badge-icon" aria-hidden="true">🔐</span>
+    <span class="admin-badge-label">관리자 모드</span>
+    <span class="admin-badge-divider" aria-hidden="true">|</span>
+    <button type="button" class="admin-badge-logout" id="adminLogout">로그아웃</button>
+  </div>
+
   <!-- 새 영상 추가용 떠다니는 + 버튼 (FAB) -->
   <button class="add-fab" id="addFab" aria-label="새 영상 추가" title="새 영상 추가">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
@@ -138,6 +149,28 @@
       <div class="modal-actions">
         <button class="btn" id="cancelBtn">취소</button>
         <button class="btn btn-primary" id="saveBtn">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       비밀번호 입력 모달 (관리자 모드 진입)
+       ?admin=true 또는 Ctrl+Shift+A로 트리거
+       ============================================ -->
+  <div class="modal-backdrop" id="passwordModalBackdrop">
+    <div class="modal password-modal">
+      <h2 class="modal-title">관리자 모드</h2>
+      <p class="modal-subtitle">비밀번호를 입력하세요</p>
+
+      <div class="form-group">
+        <label for="passwordInput">비밀번호</label>
+        <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="off">
+        <div class="error-message" id="passwordError"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button class="btn" id="passwordCancelBtn">취소</button>
+        <button class="btn btn-primary" id="passwordSubmitBtn">확인</button>
       </div>
     </div>
   </div>
