@@ -1,7 +1,8 @@
 /* ============================================================
-   나의 유튜브 서재 - 스크립트
+   나의 유튜브 서재 v2 - 스크립트
    - 영상 데이터를 브라우저 localStorage에 저장
    - 카테고리 필터링, 추가/편집/삭제, 클릭 시 재생 처리
+   - (v2: 카드 마크업을 새 디자인 시스템에 맞춰 업데이트)
    ============================================================ */
 
 
@@ -46,7 +47,6 @@ function saveLibrary() {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
   } catch (e) {
-    // 시크릿 모드 등에서 저장 불가능한 경우
     alert('저장에 실패했어요. 브라우저 설정을 확인해주세요.');
   }
 }
@@ -54,8 +54,6 @@ function saveLibrary() {
 
 /* ============================================================
    2. 유튜브 URL → videoId 추출
-   - 일반 watch 링크, 단축 youtu.be, embed, shorts, 그리고
-     11자리 ID만 들어와도 모두 인식
    ============================================================ */
 function extractVideoId(url) {
   if (!url) return null;
@@ -72,7 +70,25 @@ function extractVideoId(url) {
 
 
 /* ============================================================
-   3. 렌더링 - 카테고리 네비게이션
+   3. 렌더링 - 헤더 메타 줄 ("Vol. 03 · N Films · Spring, 2026")
+   - 영상 개수만 동적으로, 나머지는 정적 라벨
+   ============================================================ */
+function renderMeta() {
+  const meta = document.getElementById('metaRow');
+  if (!meta) return;
+  const count = library.length;
+  meta.innerHTML = `
+    <span>Vol. 03</span>
+    <span class="pip"></span>
+    <span>${count} ${count === 1 ? 'Film' : 'Films'}</span>
+    <span class="pip"></span>
+    <span>Spring, 2026</span>
+  `;
+}
+
+
+/* ============================================================
+   4. 렌더링 - 카테고리 탭
    ============================================================ */
 function renderCategories() {
   const nav = document.getElementById('categories');
@@ -85,7 +101,8 @@ function renderCategories() {
       ? library.length
       : library.filter(v => v.category === cat).length;
     const active = cat === currentCategory ? 'active' : '';
-    return `<button class="cat-btn ${active}" data-category="${cat}">${cat}<span class="count">(${count})</span></button>`;
+    const ariaSelected = cat === currentCategory ? 'true' : 'false';
+    return `<button class="cat-btn ${active}" role="tab" aria-selected="${ariaSelected}" data-category="${escapeHtml(cat)}">${escapeHtml(cat)}<span class="count">(${count})</span></button>`;
   }).join('');
 
   // 카테고리 버튼 클릭 → 필터 변경
@@ -105,8 +122,12 @@ function renderCategories() {
 
 
 /* ============================================================
-   4. 렌더링 - 영상 카드 그리드
+   5. 렌더링 - 영상 카드 그리드
    ============================================================ */
+
+// 재생 버튼 안에 들어갈 SVG 아이콘 (▶)
+const PLAY_ICON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+
 function renderVideos() {
   const grid = document.getElementById('videoGrid');
   const empty = document.getElementById('emptyState');
@@ -131,9 +152,9 @@ function renderVideos() {
     <article class="video-card" data-id="${video.id}" style="animation-delay: ${i * 0.05}s">
       <div class="thumbnail-wrapper" data-video-id="${video.videoId}">
         <img src="https://img.youtube.com/vi/${video.videoId}/hqdefault.jpg" alt="${escapeHtml(video.title)}" loading="lazy">
-        <div class="play-overlay">
-          <div class="play-icon"></div>
-        </div>
+        <button class="play-icon" type="button" aria-label="재생">
+          ${PLAY_ICON_SVG}
+        </button>
       </div>
       <div class="card-body">
         ${video.category ? `<div class="card-category">${escapeHtml(video.category)}</div>` : ''}
@@ -153,14 +174,16 @@ function renderVideos() {
   `).join('');
 
   // 썸네일 클릭 → 그 자리에 iframe을 끼워넣어 영상 재생
+  // .playing 클래스도 추가해서 그라디언트/재생버튼을 깔끔히 숨김
   grid.querySelectorAll('.thumbnail-wrapper').forEach(wrapper => {
     wrapper.addEventListener('click', () => {
       const vid = wrapper.dataset.videoId;
+      wrapper.classList.add('playing');
       wrapper.innerHTML = `<iframe src="https://www.youtube.com/embed/${vid}?autoplay=1" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>`;
     });
   });
 
-  // 편집 버튼 클릭 → 모달 열기 (해당 영상 데이터를 채운 상태로)
+  // 편집 버튼 클릭 → 모달 열기
   grid.querySelectorAll('.edit-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -182,8 +205,7 @@ function renderVideos() {
 
 
 /* ============================================================
-   5. HTML 이스케이프
-   - 사용자 입력에 <, >, " 등이 들어 있어도 안전하게 표시 (XSS 방지)
+   6. HTML 이스케이프 (XSS 방지)
    ============================================================ */
 function escapeHtml(str) {
   if (!str) return '';
@@ -194,8 +216,7 @@ function escapeHtml(str) {
 
 
 /* ============================================================
-   6. 모달 - 열기 / 닫기
-   - id 인자가 있으면 편집 모드, 없으면 새로 추가 모드
+   7. 모달 - 열기 / 닫기
    ============================================================ */
 function openModal(id = null) {
   editingId = id;
@@ -223,7 +244,6 @@ function openModal(id = null) {
   }
 
   modal.classList.add('active');
-  // 살짝 지연 후 URL 입력칸에 포커스 (애니메이션과 겹치지 않도록)
   setTimeout(() => document.getElementById('urlInput').focus(), 100);
 }
 
@@ -234,7 +254,7 @@ function closeModal() {
 
 
 /* ============================================================
-   7. 영상 저장 (추가 또는 편집)
+   8. 영상 저장 (추가 또는 편집)
    ============================================================ */
 function saveVideo() {
   const url      = document.getElementById('urlInput').value.trim();
@@ -271,13 +291,14 @@ function saveVideo() {
 
   saveLibrary();
   closeModal();
+  renderMeta();
   renderCategories();
   renderVideos();
 }
 
 
 /* ============================================================
-   8. 영상 삭제 (페이드 아웃 → 실제 제거)
+   9. 영상 삭제 (페이드 아웃 → 실제 제거)
    ============================================================ */
 function deleteVideo(id) {
   // 먼저 카드에 .deleting 클래스를 줘서 사라지는 애니메이션 실행
@@ -294,6 +315,7 @@ function deleteVideo(id) {
     }
 
     saveLibrary();
+    renderMeta();
     renderCategories();
     renderVideos();
   }, 300);
@@ -301,7 +323,7 @@ function deleteVideo(id) {
 
 
 /* ============================================================
-   9. 이벤트 바인딩 (모달, 키보드 등)
+   10. 이벤트 바인딩 (모달, 키보드 등)
    ============================================================ */
 
 // FAB(+) 버튼 → 새 영상 모달 열기
@@ -323,8 +345,7 @@ document.addEventListener('keydown', (e) => {
 
 
 /* ============================================================
-   10. URL 입력칸에서 포커스를 빼면 → oEmbed로 제목/채널 자동 채우기
-   - 사용자가 이미 입력해뒀다면 덮어쓰지 않음
+   11. URL 입력칸에서 포커스를 빼면 → oEmbed로 제목/채널 자동 채우기
    ============================================================ */
 document.getElementById('urlInput').addEventListener('blur', async () => {
   const url     = document.getElementById('urlInput').value.trim();
@@ -332,7 +353,6 @@ document.getElementById('urlInput').addEventListener('blur', async () => {
   const titleInput   = document.getElementById('titleInput');
   const channelInput = document.getElementById('channelInput');
 
-  // URL이 유효하고, 제목/채널이 둘 다 비어있을 때만 시도
   if (videoId && !titleInput.value && !channelInput.value) {
     try {
       const res = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
@@ -349,8 +369,9 @@ document.getElementById('urlInput').addEventListener('blur', async () => {
 
 
 /* ============================================================
-   11. 초기 렌더
+   12. 초기 렌더
    ============================================================ */
 saveLibrary();        // 첫 방문 시 샘플 데이터를 localStorage에도 기록
+renderMeta();
 renderCategories();
 renderVideos();

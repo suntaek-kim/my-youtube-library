@@ -5,12 +5,11 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>나의 유튜브 서재</title>
 
-  <!-- 외부 폰트 (Fraunces / Nanum Myeongjo / IBM Plex Sans KR) -->
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link
-    href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;1,9..144,400&family=Nanum+Myeongjo:wght@400;700;800&family=IBM+Plex+Sans+KR:wght@300;400;500;600&display=swap"
-    rel="stylesheet">
+  <!-- Pretendard Variable (Wanted 디자인 시스템 표준 폰트) -->
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">
+  <link rel="stylesheet"
+    href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 
   <!-- 외부 스타일시트 -->
   <link rel="stylesheet" href="style.css">
@@ -20,36 +19,60 @@
 </head>
 <body>
 
-  <!-- ============================================
-       헤더: 사이트 제목과 부제
-       ============================================ -->
-  <header>
-    <div class="site-tag">A Personal Curation</div>
-    <h1>나의 유튜브 <span class="accent">서재</span></h1>
-    <p class="subtitle">내가 사랑하는 영상들을 한 권의 책처럼 모아두는 곳</p>
-  </header>
+  <div class="page">
 
-  <!-- ============================================
-       카테고리 네비게이션 (JS로 동적 생성)
-       ============================================ -->
-  <nav class="categories" id="categories">
-    <!-- script.js의 renderCategories()에서 채움 -->
-  </nav>
+    <!-- ============================================
+         헤더: 사이트 제목 + 메타 줄
+         ============================================ -->
+    <header class="masthead">
+      <div class="eyebrow">
+        <em>A Personal Curation</em>
+        <span class="dot">·</span>
+        <em>Est. 2026</em>
+      </div>
+      <h1 class="title">나의 유튜브 <span class="accent">서재</span></h1>
+      <p class="subtitle">내가 사랑하는 영상들을 한 권의 책처럼 모아두는 곳</p>
+      <!-- 메타 줄 (영상 개수는 JS가 채움) -->
+      <div class="meta-row" id="metaRow"></div>
+    </header>
 
-  <!-- ============================================
-       메인: 영상 카드 그리드 + 빈 상태 메시지
-       ============================================ -->
-  <main>
-    <div class="video-grid" id="videoGrid">
-      <!-- script.js의 renderVideos()에서 채움 -->
-    </div>
-    <div class="empty-state" id="emptyState" style="display:none;">
-      이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.
-    </div>
-  </main>
+    <!-- ============================================
+         카테고리 네비게이션 (JS로 동적 생성)
+         ============================================ -->
+    <nav class="categories" id="categories" role="tablist" aria-label="카테고리">
+      <!-- script.js의 renderCategories()에서 채움 -->
+    </nav>
 
-  <!-- 새 영상 추가용 떠다니는 + 버튼 -->
-  <button class="add-fab" id="addFab" title="새 영상 추가">+</button>
+    <!-- ============================================
+         메인: 영상 카드 그리드 + 빈 상태 메시지
+         ============================================ -->
+    <main>
+      <div class="video-grid" id="videoGrid">
+        <!-- script.js의 renderVideos()에서 채움 -->
+      </div>
+      <div class="empty-state" id="emptyState" style="display:none;">
+        이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.
+      </div>
+    </main>
+
+    <!-- ============================================
+         푸터 (장식적 마무리)
+         ============================================ -->
+    <footer class="footnote">
+      <em>End of Shelf One</em>
+      <span class="ornament">❦</span>
+      <em>More to come</em>
+    </footer>
+
+  </div>
+
+  <!-- 새 영상 추가용 떠다니는 + 버튼 (FAB) -->
+  <button class="add-fab" id="addFab" aria-label="새 영상 추가" title="새 영상 추가">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+      <line x1="12" y1="5" x2="12" y2="19"/>
+      <line x1="5" y1="12" x2="19" y2="12"/>
+    </svg>
+  </button>
 
   <!-- ============================================
        추가/편집 모달
@@ -59,7 +82,7 @@
       <h2 class="modal-title" id="modalTitle">새 영상 더하기</h2>
       <p class="modal-subtitle">서재에 한 권을 더해주세요</p>
 
-      <!-- 유튜브 URL 입력 (blur 시 oEmbed로 제목 자동 채움) -->
+      <!-- 유튜브 URL (blur 시 oEmbed로 제목 자동 채움) -->
       <div class="form-group">
         <label for="urlInput">유튜브 URL</label>
         <input type="text" id="urlInput" placeholder="https://www.youtube.com/watch?v=...">
@@ -95,13 +118,6 @@
       </div>
     </div>
   </div>
-
-  <!-- ============================================
-       푸터
-       ============================================ -->
-  <footer>
-    Made with care · 나만의 영상 큐레이션
-  </footer>
 
 </body>
 </html>

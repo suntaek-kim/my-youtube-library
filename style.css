@@ -1,29 +1,67 @@
 /* ============================================================
-   나의 유튜브 서재 - 스타일시트
-   종이책 느낌의 베이지 + 적갈색 포인트 컬러
+   나의 유튜브 서재 v2 - 스타일시트
+   Wanted 디자인 시스템 기반 (Pretendard + #0066FF Primary)
    ============================================================ */
 
 
 /* ============================================================
-   1. 색상 팔레트 (CSS 변수)
-   - 모든 색은 여기서 정의하고, 다른 곳에선 var(--이름)으로 참조
+   1. 디자인 토큰 (CSS 변수)
+   - Wanted Design System의 컬러/지오메트리/그림자/모션 토큰
    ============================================================ */
 :root {
-  --bg:        #f4f1ea;            /* 메인 배경 (종이 베이지) */
-  --bg-deep:   #ebe6db;            /* 살짝 진한 배경 (네비/썸네일 빈자리) */
-  --ink:       #2a2520;            /* 본문 텍스트 (잉크 검정) */
-  --ink-soft:  #5c544b;            /* 보조 텍스트 */
-  --ink-faint: #8a8175;            /* 흐린 텍스트 */
-  --accent:    #8b3a2f;            /* 포인트 컬러 (적갈색) */
-  --accent-soft: #c4634f;          /* 포인트 보조 */
-  --line:      #d6cfc1;            /* 구분선 */
-  --paper:     #fbf8f1;            /* 카드/모달 배경 (밝은 종이) */
-  --shadow:    rgba(42, 37, 32, 0.08);
+  /* --- Brand --- */
+  --primary-strong: #0066FF;          /* 메인 액센트 (블루) */
+  --primary-heavy:  #3385FF;          /* 호버 시 더 밝은 블루 */
+
+  /* --- Atomic: 차가운 회색 스케일 --- */
+  --c-cool-5:  #15161A;
+  --c-cool-25: #2B2D33;
+  --c-cool-50: #6B6E78;
+  --c-cool-60: #878A93;
+  --c-cool-70: #A4A7AE;
+  --c-cool-90: #DFE0E3;
+  --c-cool-95: #ECEDEF;
+  --c-cool-97: #F4F4F5;
+  --c-cool-98: #F7F7F8;
+
+  /* --- Semantic: 의미별 토큰 --- */
+  --background-normal:           #F7F7F8;            /* 페이지 배경 */
+  --background-elevated-normal:  #FFFFFF;            /* 카드/모달 배경 */
+  --label-strong:                #15161A;            /* 본문 (가장 진함) */
+  --label-neutral:               #2B2D33;            /* 보조 본문 */
+  --label-alternative:           #6B6E78;            /* 부제, 라벨 */
+  --label-assistive:             #878A93;            /* 흐린 텍스트 */
+  --line-normal:                 rgba(112, 115, 124, 0.22);   /* 기본 구분선 */
+  --line-alternative:            rgba(112, 115, 124, 0.16);
+  --line-soft:                   rgba(112, 115, 124, 0.08);   /* 가장 옅은 선 */
+  --fill-normal:                 rgba(112, 115, 124, 0.08);   /* 호버 배경 */
+  --fill-strong:                 rgba(112, 115, 124, 0.16);
+
+  /* --- Geometry: 라디우스 토큰 --- */
+  --radius-8:  8px;
+  --radius-10: 10px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-24: 24px;
+  --radius-32: 32px;
+
+  /* --- Two-stop elevation: 두 단 그림자 (tight + soft) --- */
+  --shadow-normal-medium: 0 1px 2px rgba(0,0,0,0.06), 0 8px 24px rgba(0,0,0,0.12);
+  --shadow-normal-small:  0 1px 2px rgba(0,0,0,0.06), 0 4px 12px rgba(0,0,0,0.08);
+  --shadow-emphasize:     0 2px 4px rgba(0,0,0,0.08), 0 16px 36px rgba(0,0,0,0.16);
+  --shadow-blue:          0 1px 2px rgba(0,0,0,0.08), 0 14px 30px rgba(0, 102, 255, 0.32);
+
+  /* --- Motion: 부드러운 가속 곡선 --- */
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  /* --- Type: 단일 폰트 패밀리 --- */
+  --font-sans: "Pretendard Variable", "Pretendard JP", -apple-system, BlinkMacSystemFont,
+               "Apple SD Gothic Neo", sans-serif;
 }
 
 
 /* ============================================================
-   2. 전역 리셋
+   2. 전역 리셋 + 기본 타이포
    ============================================================ */
 * {
   box-sizing: border-box;
@@ -31,174 +69,236 @@
   padding: 0;
 }
 
+html, body {
+  background: var(--background-normal);
+  color: var(--label-strong);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
 body {
-  font-family: 'IBM Plex Sans KR', 'Fraunces', serif;
-  background: var(--bg);
-  color: var(--ink);
-  line-height: 1.6;
   min-height: 100vh;
-  /* 배경에 살짝 번지는 색감을 더해 종이 느낌 강화 */
-  background-image:
-    radial-gradient(circle at 20% 30%, rgba(139, 58, 47, 0.03) 0%, transparent 50%),
-    radial-gradient(circle at 80% 70%, rgba(139, 58, 47, 0.02) 0%, transparent 50%);
+  padding-bottom: 160px;          /* FAB이 푸터를 가리지 않도록 여유 */
+}
+
+/* 가운데 정렬 컨테이너 (시안의 .page) */
+.page {
+  max-width: 1056px;
+  margin: 0 auto;
+  padding: 0 32px;
 }
 
 
 /* ============================================================
-   3. 헤더 (사이트 제목 영역)
+   3. 헤더 (사이트 제목 + 메타 줄)
    ============================================================ */
-header {
-  padding: 80px 40px 60px;
+header.masthead {
+  padding: 120px 0 64px;
   text-align: center;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-normal);
   position: relative;
 }
 
-/* 헤더 상단의 짧은 적갈색 가로선 (장식) */
-header::before {
+/* 헤더 상단의 짧은 가로선 (장식) */
+header.masthead::before {
   content: "";
   position: absolute;
-  top: 30px;
-  left: 50%;
+  top: 88px; left: 50%;
   transform: translateX(-50%);
-  width: 60px;
-  height: 1px;
-  background: var(--accent);
+  width: 40px; height: 1px;
+  background: var(--label-strong);
+  opacity: 0.6;
 }
 
-.site-tag {
-  font-family: 'Fraunces', serif;
+/* "A Personal Curation · Est. 2026" 라벨 */
+.eyebrow {
+  font-size: 13px;
   font-style: italic;
-  font-size: 14px;
-  letter-spacing: 0.15em;
-  color: var(--ink-faint);
-  text-transform: uppercase;
-  margin-bottom: 16px;
-}
-
-h1 {
-  font-family: 'Nanum Myeongjo', serif;
-  font-weight: 800;
-  font-size: clamp(40px, 6vw, 64px);   /* 화면 폭에 따라 40~64px 사이 가변 */
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-bottom: 20px;
-}
-
-/* 제목 안의 "서재" 글자만 적갈색 이탤릭으로 강조 */
-h1 .accent {
-  font-style: italic;
-  color: var(--accent);
-  font-family: 'Fraunces', serif;
   font-weight: 500;
+  letter-spacing: 0.18em;
+  color: var(--label-alternative);
+  text-transform: uppercase;
+  margin-bottom: 28px;
+}
+.eyebrow .dot {
+  display: inline-block;
+  margin: 0 10px;
+  opacity: 0.5;
+  font-style: normal;
+}
+
+/* 메인 타이틀 (Pretendard 700, 디스플레이 트래킹) */
+h1.title {
+  font-weight: 700;
+  font-size: 80px;
+  line-height: 1.05;
+  letter-spacing: -0.029em;        /* Wanted 디스플레이 트래킹 */
+  color: var(--label-strong);
+  margin-bottom: 24px;
+}
+
+/* 제목 안의 "서재" — 블루 + 이탤릭 + 형광펜 하이라이트 */
+h1.title .accent {
+  color: var(--primary-strong);
+  font-style: italic;
+  font-weight: 600;
+  position: relative;
+}
+h1.title .accent::after {
+  content: "";
+  position: absolute;
+  left: 4px; right: 6px; bottom: 8px;
+  height: 8px;
+  background: rgba(0, 102, 255, 0.12);
+  z-index: -1;
+  transform: skewX(-8deg);          /* 살짝 비스듬한 형광펜 느낌 */
 }
 
 .subtitle {
-  font-family: 'Fraunces', serif;
-  font-size: 17px;
-  color: var(--ink-soft);
-  max-width: 500px;
+  font-size: 18px;
+  line-height: 1.625;
+  letter-spacing: 0.006em;
+  color: var(--label-alternative);
+  font-weight: 400;
+  max-width: 540px;
   margin: 0 auto;
+}
+
+/* "Vol. 03 · N Films · Spring, 2026" 메타 줄 */
+.meta-row {
+  margin-top: 36px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  font-size: 12px;
   font-style: italic;
+  letter-spacing: 0.14em;
+  color: var(--label-assistive);
+  text-transform: uppercase;
+  font-weight: 500;
+}
+.meta-row .pip {
+  width: 3px; height: 3px;
+  border-radius: 50%;
+  background: var(--label-assistive);
+  opacity: 0.7;
+  font-style: normal;
 }
 
 
 /* ============================================================
-   4. 카테고리 네비게이션 (스크롤 시 상단에 고정)
+   4. 카테고리 탭 (시안 .tabs)
    ============================================================ */
 .categories {
   display: flex;
   justify-content: center;
-  gap: 0;
-  padding: 24px 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg-deep);
+  gap: 4px;
+  padding: 40px 0 56px;
   flex-wrap: wrap;
-  position: sticky;          /* 스크롤해도 화면 위쪽에 붙어있음 */
-  top: 0;
-  z-index: 10;
-  backdrop-filter: blur(8px);
 }
 
 .cat-btn {
-  background: transparent;
+  background: none;
   border: none;
-  font-family: 'Nanum Myeongjo', serif;
-  font-size: 15px;
-  color: var(--ink-soft);
-  padding: 8px 20px;
   cursor: pointer;
-  transition: all 0.3s ease;
+  padding: 12px 20px;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--label-alternative);
+  letter-spacing: -0.01em;
   position: relative;
+  transition: color 180ms var(--ease), background 180ms var(--ease);
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  border-radius: var(--radius-10);
+}
+
+/* 카테고리 옆 (개수) — 이탤릭으로 작게 */
+.cat-btn .count {
+  font-size: 12px;
+  font-style: italic;
+  color: var(--label-assistive);
   font-weight: 400;
+  letter-spacing: 0;
 }
 
 .cat-btn:hover {
-  color: var(--accent);
+  color: var(--label-strong);
+  background: var(--fill-normal);
 }
 
+/* 활성 카테고리 — 블루 + 굵게 + 짧은 밑줄 */
 .cat-btn.active {
-  color: var(--accent);
+  color: var(--primary-strong);
   font-weight: 700;
 }
-
-/* 활성 카테고리 아래 짧은 강조 밑줄 */
+.cat-btn.active:hover {
+  background: rgba(0, 102, 255, 0.06);
+}
+.cat-btn.active .count {
+  color: var(--primary-strong);
+  opacity: 0.7;
+}
 .cat-btn.active::after {
   content: "";
   position: absolute;
-  bottom: -1px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 30px;
+  left: 16px; right: 16px;
+  bottom: 4px;
   height: 2px;
-  background: var(--accent);
-}
-
-/* 카테고리 옆 (개수) 표시 */
-.cat-btn .count {
-  font-size: 11px;
-  color: var(--ink-faint);
-  margin-left: 4px;
-  font-family: 'Fraunces', serif;
+  background: var(--primary-strong);
+  border-radius: 1px;
 }
 
 
 /* ============================================================
-   5. 메인 컨테이너
-   ============================================================ */
-main {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 60px 40px 120px;
-}
-
-
-/* ============================================================
-   6. 영상 카드 그리드
-   - 화면 폭에 따라 자동으로 열 수가 바뀜 (auto-fill)
+   5. 영상 카드 그리드 (3열 → 반응형)
    ============================================================ */
 .video-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
-  gap: 56px 40px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 48px 32px;
 }
 
+/* 카드 컨테이너 — 24px 라운드 + 화이트 + 라인 */
 .video-card {
-  background: var(--paper);
-  border: 1px solid var(--line);
-  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  position: relative;
-  animation: fadeUp 0.6s ease backwards;   /* 등장 애니메이션 */
+  display: flex;
+  flex-direction: column;
+  background: var(--background-elevated-normal);
+  border: 1px solid var(--line-normal);
+  border-radius: var(--radius-24);
+  overflow: hidden;
+  transition: transform 280ms var(--ease),
+              box-shadow 280ms var(--ease),
+              border-color 280ms var(--ease);
+  animation: fadeUp 0.6s var(--ease) backwards;   /* 등장 애니메이션 */
 }
 
 @keyframes fadeUp {
-  from { opacity: 0; transform: translateY(20px); }
+  from { opacity: 0; transform: translateY(16px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
+/* 카드 호버: 살짝 떠오르며 2-stop 그림자 + 라인 강화 */
 .video-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 20px 40px var(--shadow);
+  transform: translateY(-6px);
+  box-shadow: var(--shadow-normal-medium);
+  border-color: rgba(112, 115, 124, 0.40);
+}
+/* 카드 호버 시 썸네일 1.04배 확대 */
+.video-card:hover .thumbnail-wrapper img {
+  transform: scale(1.04);
+}
+/* 카드 호버 시 재생 버튼이 블루로 차오름 */
+.video-card:hover .play-icon {
+  transform: translate(-50%, -50%) scale(1.06);
+  background: var(--primary-strong);
+}
+.video-card:hover .play-icon svg {
+  fill: #fff;
 }
 
 /* 삭제 직전 페이드 아웃 효과 */
@@ -209,129 +309,144 @@ main {
 
 
 /* ============================================================
-   7. 카드 - 썸네일 영역
+   6. 카드 - 썸네일 + 재생 버튼
    ============================================================ */
 .thumbnail-wrapper {
   position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
+  aspect-ratio: 16 / 10;            /* 시안: 16:9 → 16:10 */
   overflow: hidden;
-  background: var(--bg-deep);
+  background: var(--c-cool-25);
   cursor: pointer;
 }
 
-.thumbnail-wrapper iframe,
-.thumbnail-wrapper img {
+.thumbnail-wrapper img,
+.thumbnail-wrapper iframe {
   width: 100%;
   height: 100%;
-  border: none;
+  object-fit: cover;
   display: block;
+  border: none;
+  transition: transform 600ms var(--ease);
 }
 
-/* 썸네일 위에 살짝 어두운 오버레이 + 재생 버튼 */
-.thumbnail-wrapper .play-overlay {
+/* 썸네일 위 하단 그라디언트 (글자 가독성용) */
+.thumbnail-wrapper::after {
+  content: "";
   position: absolute;
   inset: 0;
-  background: rgba(42, 37, 32, 0.3);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background 0.3s ease;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
+  pointer-events: none;
 }
 
-.thumbnail-wrapper:hover .play-overlay {
-  background: rgba(42, 37, 32, 0.5);
-}
+/* 재생 시작되면 그라디언트와 재생 버튼 숨김 */
+.thumbnail-wrapper.playing::after { display: none; }
+.thumbnail-wrapper.playing .play-icon { display: none; }
 
+/* 재생 버튼 (가운데 동그라미 + 삼각형 아이콘) */
 .play-icon {
-  width: 60px;
-  height: 60px;
-  background: var(--paper);
+  position: absolute;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  width: 56px; height: 56px;
   border-radius: 50%;
+  background: rgba(255, 255, 255, 0.94);
+  border: none;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-  transition: transform 0.3s ease;
+  cursor: pointer;
+  z-index: 2;
+  transition: transform 240ms var(--ease), background 240ms var(--ease);
+  box-shadow: var(--shadow-normal-small);
+  padding: 0;
 }
-
-.thumbnail-wrapper:hover .play-icon {
-  transform: scale(1.1);
-}
-
-/* 재생 버튼 안의 삼각형 (▶) - border 트릭 */
-.play-icon::before {
-  content: "";
-  width: 0;
-  height: 0;
-  border-left: 16px solid var(--accent);
-  border-top: 10px solid transparent;
-  border-bottom: 10px solid transparent;
-  margin-left: 4px;
+.play-icon svg {
+  width: 20px;
+  height: 20px;
+  fill: var(--label-strong);
+  margin-left: 3px;                 /* 삼각형이 시각적으로 가운데 보이도록 */
+  transition: fill 240ms var(--ease);
 }
 
 
 /* ============================================================
-   8. 카드 - 본문 영역 (제목, 채널, 노트, 액션)
+   7. 카드 - 본문 (제목, 채널, 노트, 액션)
    ============================================================ */
 .card-body {
-  padding: 24px 26px 28px;
+  padding: 24px 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* 카테고리 라벨 - 작고 이탤릭, 블루 */
 .card-category {
-  font-family: 'Fraunces', serif;
-  font-style: italic;
   font-size: 12px;
-  color: var(--accent);
-  letter-spacing: 0.1em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
-  margin-bottom: 8px;
+  color: var(--primary-strong);
+  font-weight: 600;
+  font-style: italic;
 }
 
+/* 카드 제목 - 굵고 약간 큰 */
 .card-title {
-  font-family: 'Nanum Myeongjo', serif;
   font-weight: 700;
   font-size: 19px;
-  line-height: 1.35;
-  margin-bottom: 6px;
-  color: var(--ink);
-  letter-spacing: -0.01em;
+  line-height: 1.4;
+  letter-spacing: -0.022em;
+  color: var(--label-strong);
+  margin-top: 2px;
+  text-wrap: pretty;                /* 마지막 줄이 한 단어로 떨어지지 않게 */
 }
 
+/* 채널명 - 흐리고 이탤릭 */
 .card-channel {
-  font-family: 'Fraunces', serif;
   font-size: 13px;
-  color: var(--ink-faint);
-  margin-bottom: 16px;
+  color: var(--label-assistive);
+  margin-top: 2px;
+  font-weight: 500;
   font-style: italic;
 }
 
-/* 사용자 메모 영역 */
+/* 큐레이터 노트 (시안 .comment + .divider) */
 .card-note {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line-normal);
   font-size: 14px;
-  color: var(--ink-soft);
-  line-height: 1.7;
-  padding-top: 16px;
-  border-top: 1px solid var(--line);
+  line-height: 1.625;
+  letter-spacing: 0.006em;
+  color: var(--label-neutral);
   position: relative;
-  font-weight: 300;
+  font-weight: 400;
 }
 
-/* 메모 앞의 큰 따옴표 장식 (❝) */
+/* 큰 따옴표 장식 (❝) - 블루 */
 .card-note::before {
   content: "❝";
-  font-family: 'Fraunces', serif;
-  font-size: 24px;
-  color: var(--accent);
   position: absolute;
-  top: 8px;
-  left: -2px;
+  left: -2px; top: 18px;
+  font-size: 28px;
+  color: var(--primary-strong);
   line-height: 1;
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+/* divider 위에 짧은 액센트 라인 (시안 .divider::before) */
+.card-note::after {
+  content: "";
+  position: absolute;
+  left: 0; top: -1px;
+  width: 28px; height: 1px;
+  background: var(--primary-strong);
 }
 
 .card-note-text {
-  padding-left: 22px;
   display: block;
+  padding-left: 22px;
+  padding-top: 8px;
+  font-style: italic;
 }
 
 /* 카드 하단 편집/삭제 버튼 */
@@ -340,98 +455,133 @@ main {
   gap: 8px;
   margin-top: 18px;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-soft);
 }
 
 .card-btn {
   flex: 1;
   background: transparent;
-  border: 1px solid var(--line);
-  color: var(--ink-soft);
-  font-family: 'IBM Plex Sans KR', sans-serif;
+  border: 1px solid var(--line-normal);
+  color: var(--label-alternative);
+  font-family: inherit;
   font-size: 12px;
+  font-weight: 500;
   padding: 8px 12px;
   cursor: pointer;
-  transition: all 0.2s ease;
-  letter-spacing: 0.05em;
+  transition: all 180ms var(--ease);
+  border-radius: var(--radius-8);
+  letter-spacing: 0.02em;
 }
-
 .card-btn:hover {
-  background: var(--ink);
-  color: var(--paper);
-  border-color: var(--ink);
+  background: var(--label-strong);
+  color: white;
+  border-color: var(--label-strong);
 }
-
-/* 삭제 버튼은 호버 시 적갈색으로 */
 .card-btn.delete:hover {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+  color: white;
 }
 
 
 /* ============================================================
-   9. 빈 상태 메시지 (영상이 하나도 없을 때)
+   8. 빈 상태 메시지
    ============================================================ */
 .empty-state {
   text-align: center;
   padding: 80px 20px;
-  color: var(--ink-faint);
-  font-family: 'Fraunces', serif;
+  color: var(--label-assistive);
   font-style: italic;
-  font-size: 18px;
+  font-size: 16px;
+  font-weight: 400;
 }
 
 
 /* ============================================================
-   10. 추가 버튼 (FAB - Floating Action Button)
+   9. FAB (Floating Action Button) - 블루 글로우
    ============================================================ */
 .add-fab {
   position: fixed;
-  bottom: 40px;
-  right: 40px;
-  width: 64px;
-  height: 64px;
+  right: 40px; bottom: 40px;
+  width: 60px; height: 60px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--paper);
+  background: var(--primary-strong);
   border: none;
-  font-size: 28px;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(139, 58, 47, 0.3);
-  transition: all 0.3s ease;
-  z-index: 50;
-  font-family: 'Fraunces', serif;
+  color: white;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: var(--shadow-blue);
+  transition: transform 320ms var(--ease),
+              background 220ms var(--ease),
+              box-shadow 220ms var(--ease);
+  z-index: 50;
+  font-family: inherit;
 }
 
-/* 호버 시 살짝 떠오르며 90도 회전 (+ → ×) */
+.add-fab svg {
+  width: 22px; height: 22px;
+  transition: transform 360ms var(--ease);
+}
+
+/* 호버 시 살짝 떠오르며 + 글로우 강화 + 아이콘 90도 회전 */
 .add-fab:hover {
-  transform: translateY(-2px) rotate(90deg);
-  box-shadow: 0 12px 32px rgba(139, 58, 47, 0.4);
+  background: var(--primary-heavy);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.16),
+              0 18px 36px rgba(0, 102, 255, 0.45);
+}
+.add-fab:hover svg {
+  transform: rotate(90deg);
+}
+.add-fab:active {
+  background: var(--primary-strong);
+  filter: brightness(0.92);
 }
 
 
 /* ============================================================
-   11. 모달 (영상 추가/편집 창)
+   10. 푸터 (장식적 마무리)
+   ============================================================ */
+.footnote {
+  text-align: center;
+  margin-top: 96px;
+  padding-top: 32px;
+  border-top: 1px solid var(--line-normal);
+  font-style: italic;
+  color: var(--label-assistive);
+  font-size: 13px;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+}
+.footnote .ornament {
+  display: inline-block;
+  margin: 0 14px;
+  color: var(--primary-strong);
+  opacity: 0.8;
+  font-style: normal;
+}
+
+
+/* ============================================================
+   11. 모달 (영상 추가/편집)
    ============================================================ */
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(42, 37, 32, 0.5);
-  display: none;                /* 평소엔 숨김 */
+  background: rgba(21, 22, 26, 0.5);
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 100;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(8px);
   padding: 20px;
 }
 
-/* JS에서 .active 클래스를 토글해서 띄움 */
 .modal-backdrop.active {
   display: flex;
-  animation: fadeIn 0.3s ease;
+  animation: fadeIn 0.3s var(--ease);
 }
 
 @keyframes fadeIn {
@@ -440,15 +590,16 @@ main {
 }
 
 .modal {
-  background: var(--paper);
+  background: var(--background-elevated-normal);
   width: 100%;
   max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
   padding: 40px;
   position: relative;
-  animation: slideUp 0.4s cubic-bezier(0.22, 1, 0.36, 1);
-  border: 1px solid var(--line);
+  animation: slideUp 0.4s var(--ease);
+  border-radius: var(--radius-24);
+  box-shadow: var(--shadow-emphasize);
 }
 
 @keyframes slideUp {
@@ -457,24 +608,23 @@ main {
 }
 
 .modal-title {
-  font-family: 'Nanum Myeongjo', serif;
-  font-size: 28px;
   font-weight: 700;
-  margin-bottom: 4px;
-  letter-spacing: -0.01em;
+  font-size: 24px;
+  letter-spacing: -0.022em;
+  color: var(--label-strong);
+  margin-bottom: 6px;
 }
-
 .modal-subtitle {
-  font-family: 'Fraunces', serif;
   font-style: italic;
-  color: var(--ink-faint);
+  color: var(--label-assistive);
   margin-bottom: 32px;
   font-size: 14px;
+  font-weight: 400;
 }
 
 
 /* ============================================================
-   12. 모달 - 폼 요소 (라벨, 입력, 텍스트영역)
+   12. 모달 - 폼 요소
    ============================================================ */
 .form-group {
   margin-bottom: 20px;
@@ -482,52 +632,50 @@ main {
 
 .form-group label {
   display: block;
-  font-family: 'Fraunces', serif;
-  font-style: italic;
   font-size: 13px;
-  color: var(--ink-soft);
-  margin-bottom: 6px;
-  letter-spacing: 0.05em;
+  color: var(--label-alternative);
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+  font-weight: 500;
 }
 
 .form-group input,
-.form-group textarea,
-.form-group select {
+.form-group textarea {
   width: 100%;
   padding: 12px 14px;
-  border: 1px solid var(--line);
-  background: var(--bg);
-  font-family: 'IBM Plex Sans KR', sans-serif;
+  border: 1px solid var(--line-normal);
+  background: var(--background-normal);
+  font-family: inherit;
   font-size: 14px;
-  color: var(--ink);
-  transition: border-color 0.2s ease;
+  color: var(--label-strong);
+  border-radius: var(--radius-10);
+  transition: border-color 180ms var(--ease), background 180ms var(--ease);
 }
 
+/* 포커스 시 블루 테두리 + 화이트 배경 */
 .form-group input:focus,
-.form-group textarea:focus,
-.form-group select:focus {
+.form-group textarea:focus {
   outline: none;
-  border-color: var(--accent);     /* 포커스 시 적갈색 테두리 */
+  border-color: var(--primary-strong);
+  background: var(--background-elevated-normal);
 }
 
 .form-group textarea {
   resize: vertical;
   min-height: 100px;
-  line-height: 1.6;
+  line-height: 1.625;
 }
 
-/* 입력칸 아래 도움말 */
 .form-group .hint {
   font-size: 11px;
-  color: var(--ink-faint);
-  margin-top: 4px;
-  font-family: 'Fraunces', serif;
+  color: var(--label-assistive);
+  margin-top: 6px;
   font-style: italic;
 }
 
 
 /* ============================================================
-   13. 모달 - 버튼 (취소/저장)
+   13. 모달 - 버튼 (취소 / 저장)
    ============================================================ */
 .modal-actions {
   display: flex;
@@ -538,56 +686,54 @@ main {
 .btn {
   flex: 1;
   padding: 12px 20px;
-  border: 1px solid var(--ink);
-  font-family: 'Nanum Myeongjo', serif;
+  border: 1px solid var(--line-normal);
+  font-family: inherit;
   font-size: 14px;
+  font-weight: 500;
   cursor: pointer;
-  transition: all 0.2s ease;
-  background: var(--paper);
-  color: var(--ink);
-  letter-spacing: 0.05em;
+  transition: all 180ms var(--ease);
+  background: var(--background-elevated-normal);
+  color: var(--label-strong);
+  border-radius: var(--radius-10);
+  letter-spacing: -0.01em;
 }
-
 .btn:hover {
-  background: var(--ink);
-  color: var(--paper);
+  background: var(--fill-normal);
 }
 
-/* 저장 버튼은 적갈색 강조 */
+/* 저장 버튼 - 블루 강조 */
 .btn-primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: var(--paper);
+  background: var(--primary-strong);
+  border-color: var(--primary-strong);
+  color: white;
 }
-
 .btn-primary:hover {
-  background: var(--ink);
-  border-color: var(--ink);
+  background: var(--primary-heavy);
+  border-color: var(--primary-heavy);
 }
 
 
 /* ============================================================
-   14. 푸터
+   14. 반응형
+   - 태블릿(920px 이하): 2열 그리드, 헤더 축소
+   - 모바일(600px 이하): 1열, 카테고리 가로 스크롤
    ============================================================ */
-footer {
-  text-align: center;
-  padding: 40px 20px;
-  border-top: 1px solid var(--line);
-  color: var(--ink-faint);
-  font-family: 'Fraunces', serif;
-  font-style: italic;
-  font-size: 13px;
+@media (max-width: 920px) {
+  .video-grid    { grid-template-columns: repeat(2, 1fr); gap: 40px 24px; }
+  h1.title       { font-size: 60px; }
+  header.masthead { padding: 80px 0 48px; }
+  header.masthead::before { top: 56px; }
 }
 
-
-/* ============================================================
-   15. 반응형 (모바일/태블릿: 가로 768px 이하)
-   ============================================================ */
-@media (max-width: 768px) {
-  header        { padding: 60px 24px 40px; }
-  main          { padding: 40px 24px 100px; }
-  .video-grid   { gap: 40px 20px; grid-template-columns: 1fr; }
-  .add-fab      { bottom: 24px; right: 24px; width: 56px; height: 56px; }
-  .modal        { padding: 28px; }
-  .cat-btn      { padding: 8px 14px; font-size: 14px; }
+@media (max-width: 600px) {
+  .page          { padding: 0 20px; }
+  .video-grid    { grid-template-columns: 1fr; }
+  h1.title       { font-size: 44px; }
+  .subtitle      { font-size: 16px; }
+  header.masthead { padding: 64px 0 40px; }
+  header.masthead::before { top: 44px; }
+  .meta-row      { gap: 12px; flex-wrap: wrap; }
+  .categories    { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding: 24px 0 40px; }
+  .add-fab       { right: 20px; bottom: 20px; }
+  .modal         { padding: 28px; }
 }
