@@ -801,20 +801,29 @@ h1.title .accent::after {
 /* 평소(방문자 모드)엔 모두 숨김 */
 .add-fab,
 .card-actions,
-.admin-badge {
+.admin-controls {
   display: none;
 }
 
 /* 관리자 모드일 때만 표시 (specificity가 더 높아 위 규칙을 이김) */
-body.admin-mode .add-fab      { display: flex; }
-body.admin-mode .card-actions { display: flex; }
-body.admin-mode .admin-badge  { display: inline-flex; }
+body.admin-mode .add-fab        { display: flex; }
+body.admin-mode .card-actions   { display: flex; }
+body.admin-mode .admin-controls { display: flex; }
 
-/* 관리자 배지 (우측 상단 fixed, 알약 모양) */
-.admin-badge {
+/* 관리자 컨트롤 컨테이너 (우측 상단 fixed)
+   안에 도구 그룹과 상태 배지가 가로로 정렬됨 */
+.admin-controls {
   position: fixed;
   top: 20px;
   right: 20px;
+  gap: 8px;
+  align-items: center;
+  z-index: 60;                     /* FAB(50)보다 위, 모달(100)보다 아래 */
+}
+
+/* 관리자 배지 (알약 모양, 모드 표시 + 로그아웃) */
+.admin-badge {
+  display: inline-flex;
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
@@ -825,7 +834,6 @@ body.admin-mode .admin-badge  { display: inline-flex; }
   font-size: 13px;
   font-weight: 500;
   color: var(--label-strong);
-  z-index: 60;                     /* FAB(50)보다 위, 모달(100)보다 아래 */
 }
 
 .admin-badge-icon {
@@ -890,9 +898,109 @@ body.admin-mode .admin-badge  { display: inline-flex; }
 
 
 /* ============================================================
-   17. 반응형
+   17. 관리자 도구 (내보내기 / 가져오기 + 백업 권장 점)
+   ============================================================ */
+
+.admin-tools {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.admin-tool-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  background: var(--background-elevated-normal);
+  border: 1px solid var(--line-normal);
+  border-radius: 999px;            /* 배지와 같은 알약 모양 */
+  box-shadow: var(--shadow-normal-small);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-strong);
+  letter-spacing: -0.01em;
+  transition: background 150ms var(--ease), border-color 150ms var(--ease);
+  position: relative;
+}
+
+.admin-tool-btn:hover {
+  background: var(--fill-normal);
+  border-color: rgba(112, 115, 124, 0.40);
+}
+
+.admin-tool-btn .emoji {
+  font-size: 14px;
+  line-height: 1;
+}
+
+.admin-tool-btn .label {
+  letter-spacing: -0.01em;
+}
+
+/* 백업 권장 점 (영상 ≥ 10일 때 .show 클래스로 노출) */
+.backup-dot {
+  display: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary-strong);
+  margin-left: 2px;
+  box-shadow: 0 0 0 2px rgba(0, 102, 255, 0.20);  /* 옅은 후광 */
+}
+.backup-dot.show {
+  display: inline-block;
+}
+
+
+/* ============================================================
+   18. 가져오기 미리보기 모달 + 위험 액션 버튼
+   ============================================================ */
+
+.import-summary {
+  padding: 20px;
+  background: var(--background-normal);
+  border-radius: var(--radius-12);
+  font-size: 14px;
+  line-height: 1.625;
+  color: var(--label-neutral);
+}
+
+.import-summary strong {
+  color: var(--primary-strong);
+  font-weight: 700;
+}
+
+.import-summary p + p {
+  margin-top: 8px;
+}
+
+.import-summary .meta {
+  display: block;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--label-assistive);
+  font-style: italic;
+}
+
+/* 위험한 액션 버튼 (덮어쓰기) - 빨강 외곽선 */
+.btn.btn-warning {
+  background: var(--background-elevated-normal);
+  border-color: rgba(214, 38, 61, 0.30);
+  color: #D6263D;
+}
+.btn.btn-warning:hover {
+  background: rgba(214, 38, 61, 0.06);
+  border-color: #D6263D;
+}
+
+
+/* ============================================================
+   19. 반응형
    - 태블릿(920px 이하): 2열 그리드, 헤더 축소
-   - 모바일(600px 이하): 1열, 카테고리 가로 스크롤
+   - 모바일(600px 이하): 1열, 카테고리 가로 스크롤, 도구 아이콘만
    ============================================================ */
 @media (max-width: 920px) {
   .video-grid    { grid-template-columns: repeat(2, 1fr); gap: 40px 24px; }
@@ -912,4 +1020,8 @@ body.admin-mode .admin-badge  { display: inline-flex; }
   .categories    { justify-content: flex-start; overflow-x: auto; flex-wrap: nowrap; padding: 24px 0 40px; }
   .add-fab       { right: 20px; bottom: 20px; }
   .modal         { padding: 28px; }
+
+  /* 좁은 화면에선 관리자 도구/배지의 텍스트 숨기고 이모지·아이콘만 */
+  .admin-tool-btn .label  { display: none; }
+  .admin-badge-label      { display: none; }
 }

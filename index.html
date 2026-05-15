@@ -90,14 +90,33 @@
   </div>
 
   <!-- ============================================
-       관리자 모드 배지 (관리자 모드일 때만 표시)
-       우측 상단 fixed, body.admin-mode가 있을 때만 보임
+       관리자 컨트롤 (관리자 모드일 때만 표시)
+       우측 상단 fixed - 도구 그룹 + 상태 배지
        ============================================ -->
-  <div class="admin-badge" id="adminBadge">
-    <span class="admin-badge-icon" aria-hidden="true">🔐</span>
-    <span class="admin-badge-label">관리자 모드</span>
-    <span class="admin-badge-divider" aria-hidden="true">|</span>
-    <button type="button" class="admin-badge-logout" id="adminLogout">로그아웃</button>
+  <div class="admin-controls">
+    <!-- 도구 그룹: 내보내기 / 가져오기 -->
+    <div class="admin-tools" id="adminTools">
+      <button type="button" class="admin-tool-btn" id="exportBtn" title="JSON으로 내보내기">
+        <span class="emoji" aria-hidden="true">📤</span>
+        <span class="label">내보내기</span>
+        <!-- 영상 10개 이상이면 .show 클래스로 표시 (백업 권장) -->
+        <span class="backup-dot" id="backupDot" aria-hidden="true"></span>
+      </button>
+      <button type="button" class="admin-tool-btn" id="importBtn" title="JSON 가져오기">
+        <span class="emoji" aria-hidden="true">📥</span>
+        <span class="label">가져오기</span>
+      </button>
+      <!-- 숨김 file input (importBtn 클릭 시 트리거) -->
+      <input type="file" id="importFileInput" accept=".json,application/json" hidden>
+    </div>
+
+    <!-- 상태 배지: 모드 표시 + 로그아웃 -->
+    <div class="admin-badge" id="adminBadge">
+      <span class="admin-badge-icon" aria-hidden="true">🔐</span>
+      <span class="admin-badge-label">관리자 모드</span>
+      <span class="admin-badge-divider" aria-hidden="true">|</span>
+      <button type="button" class="admin-badge-logout" id="adminLogout">로그아웃</button>
+    </div>
   </div>
 
   <!-- 새 영상 추가용 떠다니는 + 버튼 (FAB) -->
@@ -171,6 +190,27 @@
       <div class="modal-actions">
         <button class="btn" id="passwordCancelBtn">취소</button>
         <button class="btn btn-primary" id="passwordSubmitBtn">확인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================
+       가져오기 미리보기 모달
+       JSON 파일 선택 시 영상 개수 보여주고 처리 방식 선택
+       ============================================ -->
+  <div class="modal-backdrop" id="importModalBackdrop">
+    <div class="modal">
+      <h2 class="modal-title">데이터 가져오기</h2>
+      <p class="modal-subtitle">파일 내용을 확인해주세요</p>
+
+      <div class="form-group">
+        <div class="import-summary" id="importSummary"></div>
+      </div>
+
+      <div class="modal-actions">
+        <button type="button" class="btn" id="importCancelBtn">취소</button>
+        <button type="button" class="btn" id="importMergeBtn">병합</button>
+        <button type="button" class="btn btn-warning" id="importReplaceBtn">덮어쓰기</button>
       </div>
     </div>
   </div>
