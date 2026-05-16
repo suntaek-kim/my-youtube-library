@@ -1,60 +1,111 @@
 /* ============================================================
    나의 유튜브 서재 v2 - 스크립트
-   - 영상 데이터를 브라우저 localStorage에 저장
-   - 카테고리 필터링, 검색, 추가/편집/삭제, 클릭 시 재생
-   - (v2.2: 관리자 모드 - 비밀번호 게이트)
-   - (v2.3: 데이터 백업/복원 - JSON 내보내기/가져오기)
-   - (Sprint 6 Step 4: Supabase 연결 - 아래는 연결 테스트용 한 줄)
+   - (Sprint 6 Step 5: Supabase Auth - 회원가입/로그인/로그아웃)
+   - (Sprint 6 Step 6: 데이터 저장소를 localStorage → Supabase DB로 전환)
+     · 영상 CRUD를 모두 Supabase 'videos' 테이블로
+     · 비로그인: 사이트 주인(OWNER_USER_ID)의 영상 표시
+     · 로그인: 현재 사용자의 영상 표시 + 편집
+     · 기존 localStorage 데이터는 로그인 시 자동 마이그레이션
    ============================================================ */
-
-// Step 4 연결 테스트: 콘솔에 Supabase 클라이언트 객체가 보이면 연결 성공
-console.log('Supabase client:', window.supabaseClient);
 
 
 /* ============================================================
-   1. 데이터 관리 (localStorage 저장 / 로드)
+   1. 데이터 관리 (Supabase 'videos' 테이블)
    ============================================================ */
 
-// localStorage에 저장할 때 쓰는 키 이름
+// 옛 localStorage 키 (이제 저장용이 아니라 '마이그레이션 대상'을 찾는 용도)
 const STORAGE_KEY = 'myYoutubeLibrary_v1';
 
-// 처음 방문 시 보여줄 샘플 데이터
-const sampleData = [
-  {
-    id: 'sample1',
-    videoId: 'jNQXAC9IVRw',
-    title: 'Me at the zoo',
-    channel: 'jawed',
-    category: '역사적 순간',
-    note: '유튜브 최초의 영상. 19초밖에 안 되는 이 짧은 클립이 어떻게 세상을 바꿨는지 생각하면 묘한 기분이 든다.',
-    createdAt: Date.now()
-  }
-];
-
 // 전역 상태
-let library = loadLibrary();    // 영상 목록 배열
+let library = [];               // 화면에 표시 중인 영상 목록 (Supabase에서 로드)
 let currentCategory = '전체';   // 현재 선택된 카테고리
-let currentSearch = '';         // 현재 검색어 (소문자 변환 전 원본)
+let currentSearch = '';         // 현재 검색어
 let editingId = null;           // 편집 중인 영상 id (없으면 null = 새로 추가 모드)
+let currentUser = null;         // 로그인한 사용자 (14번 인증 섹션에서 갱신, 비로그인이면 null)
 
-// localStorage에서 영상 목록을 읽어옴 (없거나 깨졌으면 샘플 데이터)
-function loadLibrary() {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) return JSON.parse(saved);
-  } catch (e) {
-    // JSON이 깨져있으면 무시하고 샘플로 폴백
-  }
-  return [...sampleData];
+/**
+ * fromRow(row): Supabase 행(snake_case)을 앱 내부 형식(camelCase)으로 변환.
+ * - DB는 video_id / created_at, 앱 코드는 videoId / createdAt 을 쓰기 때문에
+ *   이 함수 하나만 거치면 렌더링·검색 등 나머지 코드는 그대로 둘 수 있음.
+ * - id는 문자열로 통일 (기존 코드가 id를 문자열로 다뤘기 때문)
+ */
+function fromRow(row) {
+  return {
+    id: String(row.id),
+    videoId: row.video_id,
+    title: row.title,
+    channel: row.channel || '',
+    category: row.category || '',
+    note: row.note || '',
+    createdAt: row.created_at
+  };
 }
 
-// 현재 영상 목록을 localStorage에 저장
-function saveLibrary() {
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(library));
-  } catch (e) {
-    alert('저장에 실패했어요. 브라우저 설정을 확인해주세요.');
+/**
+ * handleSupabaseError(error, context): Supabase 오류를 한국어 알림으로 변환.
+ */
+function handleSupabaseError(error, context) {
+  console.error('[Supabase 오류]', context, error);
+  const m = (error && error.message) || '';
+  let msg;
+  if (m.includes('Failed to fetch') || m.includes('NetworkError')) {
+    msg = '인터넷 연결을 확인해주세요.';
+  } else if ((error && error.code === '42501') || m.includes('row-level security') || m.includes('permission')) {
+    msg = '권한이 없어요. (데이터베이스 RLS 정책을 확인해주세요)';
+  } else {
+    msg = (context || '오류가 발생했어요') + ': ' + (m || '알 수 없는 오류');
   }
+  alert(msg);
+}
+
+/**
+ * loadLibrary(): Supabase에서 영상 목록을 불러와 전역 library에 채움.
+ * - 로그인 상태: 현재 사용자(currentUser)의 영상
+ * - 비로그인:    사이트 주인(OWNER_USER_ID)의 영상
+ * - 둘 다 없으면: 빈 책장
+ */
+async function loadLibrary() {
+  // 누구의 영상을 보여줄지 결정 (로그인 사용자 우선, 없으면 사이트 주인)
+  const targetUserId = currentUser?.id || window.OWNER_USER_ID;
+
+  if (!targetUserId) {
+    // 주인장도 정해지지 않았고 로그인도 안 됨 → 빈 화면
+    library = [];
+    return;
+  }
+
+  try {
+    const { data, error } = await window.supabaseClient
+      .from('videos')
+      .select('*')
+      .eq('user_id', targetUserId)
+      .order('created_at', { ascending: false });   // 최신 영상이 위로
+
+    if (error) throw error;
+    library = (data || []).map(fromRow);
+  } catch (e) {
+    handleSupabaseError(e, '영상을 불러오지 못했어요');
+    library = [];
+  }
+}
+
+/**
+ * refreshLibrary(): 로딩 표시 → 데이터 로드 → 전체 화면 렌더링.
+ * 페이지 로드/로그인/로그아웃/저장/삭제 후 호출됨.
+ */
+async function refreshLibrary() {
+  showLoading();
+  await loadLibrary();
+
+  // 현재 선택된 카테고리에 영상이 하나도 없으면 '전체'로 되돌림
+  if (currentCategory !== '전체' && !library.some(v => v.category === currentCategory)) {
+    currentCategory = '전체';
+  }
+
+  renderMeta();
+  renderCategories();
+  renderVideos();
+  updateBackupDot();
 }
 
 
@@ -162,10 +213,21 @@ function renderCategories() {
 
 
 /* ============================================================
-   6. 렌더링 - 영상 카드 그리드
+   6. 렌더링 - 영상 카드 그리드 + 로딩 표시
    ============================================================ */
 
 const PLAY_ICON_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z"/></svg>';
+
+/**
+ * showLoading(): 데이터를 불러오는 동안 그리드 영역에 로딩 메시지 표시.
+ */
+function showLoading() {
+  const grid = document.getElementById('videoGrid');
+  const empty = document.getElementById('emptyState');
+  grid.style.display = 'none';
+  empty.style.display = 'block';
+  empty.textContent = '📚 책장을 펼치는 중...';
+}
 
 function renderVideos() {
   const grid = document.getElementById('videoGrid');
@@ -176,9 +238,14 @@ function renderVideos() {
     .filter(v => matchesSearch(v, currentSearch));
 
   if (filtered.length === 0) {
-    empty.textContent = currentSearch
-      ? '찾으시는 영상이 책장에 없어요. 다른 키워드로 찾아보세요.'
-      : '이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.';
+    // 빈 상태 메시지 (검색 중 / 비로그인 / 진짜 빈 책장 구분)
+    if (currentSearch) {
+      empty.textContent = '찾으시는 영상이 책장에 없어요. 다른 키워드로 찾아보세요.';
+    } else if (!currentUser && !window.OWNER_USER_ID) {
+      empty.textContent = '이 책장은 아직 비어있어요.';
+    } else {
+      empty.textContent = '이 책장은 아직 비어있어요. 첫 번째 영상을 더해보세요.';
+    }
     grid.style.display = 'none';
     empty.style.display = 'block';
     return;
@@ -287,15 +354,27 @@ function closeModal() {
 
 
 /* ============================================================
-   9. 영상 저장 (추가 또는 편집)
+   9. 영상 저장 (Supabase insert / update)
+   - 비로그인: 저장 불가 → 알림 + 인증 모달
+   - 추가: insert (user_id 포함)
+   - 편집: update (.eq('id', editingId))
    ============================================================ */
-function saveVideo() {
+async function saveVideo() {
+  // 로그인하지 않았으면 저장 불가
+  if (!currentUser) {
+    alert('영상을 추가하려면 로그인이 필요해요.');
+    closeModal();
+    openAuthModal();
+    return;
+  }
+
   const url      = document.getElementById('urlInput').value.trim();
   const title    = document.getElementById('titleInput').value.trim();
   const channel  = document.getElementById('channelInput').value.trim();
   const category = document.getElementById('categoryInput').value.trim();
   const note     = document.getElementById('noteInput').value.trim();
 
+  // 유효성 검사
   const videoId = extractVideoId(url);
   if (!videoId) {
     alert('올바른 유튜브 URL을 입력해주세요.');
@@ -306,53 +385,65 @@ function saveVideo() {
     return;
   }
 
-  if (editingId) {
-    const idx = library.findIndex(v => v.id === editingId);
-    if (idx >= 0) {
-      library[idx] = { ...library[idx], videoId, title, channel, category, note };
+  // Supabase에 보낼 형식 (snake_case, 빈 값은 null)
+  const payload = {
+    video_id: videoId,
+    title: title,
+    channel: channel || null,
+    category: category || null,
+    note: note || null
+  };
+
+  const saveBtn = document.getElementById('saveBtn');
+  saveBtn.disabled = true;          // 중복 제출 방지
+  try {
+    if (editingId) {
+      // 편집: 기존 행을 update
+      const { error } = await window.supabaseClient
+        .from('videos')
+        .update(payload)
+        .eq('id', editingId);
+      if (error) throw error;
+    } else {
+      // 추가: user_id를 포함해 insert
+      const { error } = await window.supabaseClient
+        .from('videos')
+        .insert({ ...payload, user_id: currentUser.id });
+      if (error) throw error;
     }
-  } else {
-    library.unshift({
-      id: 'v_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-      videoId, title, channel, category, note,
-      createdAt: Date.now()
-    });
+    closeModal();
+    await refreshLibrary();        // 저장 후 최신 데이터로 다시 그림
+  } catch (e) {
+    handleSupabaseError(e, '영상을 저장하지 못했어요');
+  } finally {
+    saveBtn.disabled = false;
   }
-
-  saveLibrary();
-  closeModal();
-  renderMeta();
-  renderCategories();
-  renderVideos();
-  updateBackupDot();         // 영상 개수 변경 → 백업 점 갱신
 }
 
 
 /* ============================================================
-   10. 영상 삭제 (페이드 아웃 → 실제 제거)
+   10. 영상 삭제 (Supabase delete)
    ============================================================ */
-function deleteVideo(id) {
+async function deleteVideo(id) {
   const card = document.querySelector(`.video-card[data-id="${id}"]`);
-  if (card) card.classList.add('deleting');
+  if (card) card.classList.add('deleting');   // 페이드 아웃 시작
 
-  setTimeout(() => {
-    library = library.filter(v => v.id !== id);
-
-    if (currentCategory !== '전체' && !library.some(v => v.category === currentCategory)) {
-      currentCategory = '전체';
-    }
-
-    saveLibrary();
-    renderMeta();
-    renderCategories();
-    renderVideos();
-    updateBackupDot();        // 영상 개수 변경 → 백업 점 갱신
-  }, 300);
+  try {
+    const { error } = await window.supabaseClient
+      .from('videos')
+      .delete()
+      .eq('id', id);
+    if (error) throw error;
+    await refreshLibrary();
+  } catch (e) {
+    handleSupabaseError(e, '영상을 삭제하지 못했어요');
+    if (card) card.classList.remove('deleting');   // 실패 시 원상복구
+  }
 }
 
 
 /* ============================================================
-   11. 검색 이벤트 (200ms 디바운스)
+   11. 검색 이벤트 (200ms 디바운스, 메모리 내 필터)
    ============================================================ */
 const searchInput   = document.getElementById('searchInput');
 const searchClear   = document.getElementById('searchClear');
@@ -381,7 +472,7 @@ searchClear.addEventListener('click', () => {
 
 
 /* ============================================================
-   12. 모달 이벤트 (열기/닫기, ESC, 단축키)
+   12. 모달 이벤트 (열기/닫기, ESC)
    ============================================================ */
 
 document.getElementById('addFab').addEventListener('click', () => openModal());
@@ -392,18 +483,12 @@ document.getElementById('modalBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'modalBackdrop') closeModal();
 });
 
-// 키보드 이벤트 (전역)
+// ESC → 열려 있는 모달 모두 닫기 (영상 / 인증 / 가져오기)
 document.addEventListener('keydown', (e) => {
-  // ESC → 모든 모달 닫기 (영상/비밀번호/가져오기)
   if (e.key === 'Escape') {
     closeModal();
-    closePasswordModal();
+    closeAuthModal();
     closeImportModal();
-  }
-  // Ctrl + Shift + A → 비밀번호 모달 열기 (관리자 모드 진입)
-  if (e.ctrlKey && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
-    e.preventDefault();
-    openPasswordModal();
   }
 });
 
@@ -433,101 +518,260 @@ document.getElementById('urlInput').addEventListener('blur', async () => {
 
 
 /* ============================================================
-   14. 관리자 모드 (방문자 모드 ↔ 관리자 모드 토글)
-
-   ⚠️ 보안 알림:
-   클라이언트 사이드 게이트일 뿐입니다. script.js가 공개되므로
-   누구나 비밀번호를 볼 수 있고 콘솔로 우회도 가능합니다.
+   14. 사용자 인증 (Supabase Auth) + 데이터 마이그레이션
    ============================================================ */
 
-const ADMIN_PASSWORD = 'library2026';                       // ← 비밀번호 (바꾸려면 여기만)
-const ADMIN_STORAGE_KEY = 'myYoutubeLibrary_admin';
-let isAdmin = false;
+const auth = window.supabaseClient.auth;   // Supabase Auth 모듈
+let authMode = 'login';                     // 인증 모달 모드: 'login' | 'signup'
 
-function checkAdminMode() {
-  isAdmin = sessionStorage.getItem(ADMIN_STORAGE_KEY) === 'true';
-  document.body.classList.toggle('admin-mode', isAdmin);
-}
-
-function enterAdminMode() {
-  isAdmin = true;
-  sessionStorage.setItem(ADMIN_STORAGE_KEY, 'true');
-  document.body.classList.add('admin-mode');
-  updateBackupDot();        // 진입 시 백업 점도 갱신
-}
-
-function exitAdminMode() {
-  sessionStorage.removeItem(ADMIN_STORAGE_KEY);
-  const url = new URL(window.location.href);
-  url.searchParams.delete('admin');
-  window.history.replaceState({}, '', url);
-  window.location.reload();
-}
-
-function openPasswordModal() {
-  if (isAdmin) return;
-  const modal = document.getElementById('passwordModalBackdrop');
-  const input = document.getElementById('passwordInput');
-  const error = document.getElementById('passwordError');
-  input.value = '';
-  error.textContent = '';
-  input.classList.remove('shake');
-  modal.classList.add('active');
-  setTimeout(() => input.focus(), 100);
-}
-
-function closePasswordModal() {
-  document.getElementById('passwordModalBackdrop').classList.remove('active');
-}
-
-function submitPassword() {
-  const input = document.getElementById('passwordInput');
-  const error = document.getElementById('passwordError');
-
-  if (input.value === ADMIN_PASSWORD) {
-    enterAdminMode();
-    closePasswordModal();
-  } else {
-    input.classList.add('shake');
-    error.textContent = '비밀번호가 맞지 않아요.';
-    setTimeout(() => input.classList.remove('shake'), 400);
-    input.select();
+/* --- 로그인 상태에 따라 body 클래스와 헤더 표시를 갱신 --- */
+function updateAuthUI() {
+  const loggedIn = !!currentUser;
+  document.body.classList.toggle('logged-in', loggedIn);
+  if (loggedIn) {
+    const name = currentUser.email.split('@')[0];
+    document.getElementById('userName').textContent = name;
   }
 }
 
-document.getElementById('passwordSubmitBtn').addEventListener('click', submitPassword);
-document.getElementById('passwordCancelBtn').addEventListener('click', closePasswordModal);
+/* --- 현재 화면 모드 판별 ("개인 블로그" 모델) ---
+   'visitor'    : 비로그인 — 사이트 주인의 책장을 둘러보기
+   'owner'      : 사이트 주인 본인이 로그인 (OWNER_USER_ID와 일치)
+   'guest-user' : 다른 사용자가 로그인 — 자기만의 책장 */
+function getViewMode() {
+  if (!currentUser) return 'visitor';
+  if (window.OWNER_USER_ID && currentUser.id === window.OWNER_USER_ID) return 'owner';
+  return 'guest-user';
+}
 
-document.getElementById('passwordInput').addEventListener('keydown', (e) => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    submitPassword();
-  } else if (e.key !== 'Escape') {
-    document.getElementById('passwordError').textContent = '';
+/**
+ * migrateLocalStorageToSupabase(): 기존 localStorage 영상을 클라우드로 이전.
+ * - 로그인 상태에서 페이지 로드/로그인 직후 한 번만 실행
+ * - 사용자에게 확인을 받고, 동의하면 현재 사용자 계정으로 insert
+ * - 끝나면 옛 데이터는 백업 키로 보관하고 마이그레이션 완료 표시
+ */
+async function migrateLocalStorageToSupabase() {
+  // 이미 마이그레이션 했으면 스킵
+  if (localStorage.getItem('migrationDone_v1')) return;
+
+  // 로그인 상태가 아니면 (이전 단계라면) 다음 기회로 미룸
+  if (!currentUser) return;
+
+  const localData = localStorage.getItem(STORAGE_KEY);
+  if (!localData) {
+    localStorage.setItem('migrationDone_v1', 'true');
+    return;
   }
+
+  let localVideos;
+  try {
+    localVideos = JSON.parse(localData);
+  } catch (e) {
+    localVideos = null;
+  }
+  if (!localVideos || localVideos.length === 0) {
+    localStorage.setItem('migrationDone_v1', 'true');
+    return;
+  }
+
+  // 사용자에게 확인
+  const confirmed = confirm(
+    `이전에 쓰던 영상 ${localVideos.length}개가 이 브라우저에 남아 있어요.\n클라우드 책장으로 옮길까요?`
+  );
+  if (!confirmed) {
+    localStorage.setItem('migrationDone_v1', 'true');
+    return;
+  }
+
+  // 현재 사용자 계정으로 모두 insert
+  const videosToInsert = localVideos.map(v => ({
+    user_id: currentUser.id,
+    video_id: v.videoId,
+    title: v.title,
+    channel: v.channel || null,
+    category: v.category || null,
+    note: v.note || null
+  }));
+
+  try {
+    const { error } = await window.supabaseClient.from('videos').insert(videosToInsert);
+    if (error) throw error;
+  } catch (e) {
+    handleSupabaseError(e, '데이터 이전 중 오류가 발생했어요');
+    return;   // 실패 시 migrationDone 표시 안 함 → 다음에 다시 시도
+  }
+
+  // 성공: 옛 데이터는 백업 키로 보관 후 원래 키 제거
+  localStorage.setItem('myYoutubeLibrary_backup_pre_supabase', localData);
+  localStorage.removeItem(STORAGE_KEY);
+  localStorage.setItem('migrationDone_v1', 'true');
+
+  alert(`${videosToInsert.length}개 영상을 클라우드로 옮겼어요!`);
+}
+
+/* --- 로그인 상태 감시자 ---
+   로그인 / 로그아웃 / 페이지 로드 시마다 자동 호출됨.
+
+   ⚠️ 중요: 이 콜백 '안에서' Supabase 데이터 호출(.from(...))을 직접 await하면
+   Supabase 내부의 인증 락(lock)과 충돌해 데드락이 발생함 (화면이 멈춤).
+   → 데이터 호출은 setTimeout(.., 0)으로 감싸 '콜백이 끝난 다음 틱'에 실행한다.
+   콜백 자체는 동기로 즉시 끝나고, 무거운 작업은 분리되어 안전하게 돌아감. */
+auth.onAuthStateChange((event, session) => {
+  currentUser = session?.user ?? null;
+  updateAuthUI();
+  console.log('[화면 모드]', getViewMode(), currentUser ? `· ${currentUser.email}` : '');
+
+  // Supabase 호출은 콜백 밖(다음 틱)에서 — 데드락 방지
+  setTimeout(async () => {
+    // 로그인 상태이면 옛 localStorage 데이터 이전 시도 (이미 했으면 내부에서 스킵)
+    if (currentUser) {
+      await migrateLocalStorageToSupabase();
+    }
+    // 데이터 (재)로드 + 화면 렌더링
+    // - 로그인: 현재 사용자의 영상 / 로그아웃: 사이트 주인의 영상
+    await refreshLibrary();
+  }, 0);
 });
 
-document.getElementById('passwordModalBackdrop').addEventListener('click', (e) => {
-  if (e.target.id === 'passwordModalBackdrop') closePasswordModal();
+/* --- 인증 모달 - 열기 / 닫기 --- */
+function openAuthModal() {
+  setAuthMode('login');
+  document.getElementById('authEmail').value = '';
+  document.getElementById('authPassword').value = '';
+  document.getElementById('authPasswordConfirm').value = '';
+  document.getElementById('authError').textContent = '';
+  document.getElementById('authModalBackdrop').classList.add('active');
+  setTimeout(() => document.getElementById('authEmail').focus(), 100);
+}
+
+function closeAuthModal() {
+  document.getElementById('authModalBackdrop').classList.remove('active');
+}
+
+/* --- 탭 전환 (로그인 ↔ 회원가입) --- */
+function setAuthMode(mode) {
+  authMode = mode;
+  const isSignup = mode === 'signup';
+  document.getElementById('loginTab').classList.toggle('active', !isSignup);
+  document.getElementById('signupTab').classList.toggle('active', isSignup);
+  document.getElementById('authConfirmGroup').style.display = isSignup ? 'block' : 'none';
+  document.getElementById('authSubmitBtn').textContent = isSignup ? '회원가입' : '로그인';
+  document.getElementById('authError').textContent = '';
+}
+
+/* --- 에러 메시지 표시 (비밀번호 입력칸 흔들림 포함) --- */
+function showAuthError(message) {
+  document.getElementById('authError').textContent = message;
+  const pw = document.getElementById('authPassword');
+  pw.classList.add('shake');
+  setTimeout(() => pw.classList.remove('shake'), 400);
+}
+
+/* --- Supabase Auth 에러 메시지를 한국어로 변환 --- */
+function translateAuthError(error) {
+  const msg = (error && error.message) || '';
+  if (msg.includes('Invalid login credentials'))
+    return '이메일 또는 비밀번호가 올바르지 않아요.';
+  if (msg.includes('already registered') || msg.includes('already been registered'))
+    return '이미 가입된 이메일이에요. 로그인 탭을 이용해주세요.';
+  if (msg.includes('Password should be at least'))
+    return '비밀번호는 6자 이상이어야 해요.';
+  if (msg.includes('Unable to validate email') || msg.includes('invalid format'))
+    return '이메일 형식이 올바르지 않아요.';
+  if (msg.includes('Email not confirmed'))
+    return '이메일 인증이 필요해요. 메일함의 확인 링크를 눌러주세요.';
+  return '오류가 발생했어요: ' + msg;
+}
+
+/* --- 폼 제출 (로그인 또는 회원가입) --- */
+async function submitAuth() {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const submitBtn = document.getElementById('authSubmitBtn');
+
+  if (!email) {
+    showAuthError('이메일을 입력해주세요.');
+    return;
+  }
+  if (password.length < 6) {
+    showAuthError('비밀번호는 6자 이상이어야 해요.');
+    return;
+  }
+  if (authMode === 'signup') {
+    const confirmPw = document.getElementById('authPasswordConfirm').value;
+    if (password !== confirmPw) {
+      showAuthError('비밀번호가 일치하지 않아요.');
+      return;
+    }
+  }
+
+  submitBtn.disabled = true;
+  try {
+    if (authMode === 'signup') {
+      const { data, error } = await auth.signUp({ email, password });
+      if (error) {
+        showAuthError(translateAuthError(error));
+        return;
+      }
+      if (data.session) {
+        closeAuthModal();          // 이메일 확인 OFF → 즉시 로그인
+      } else {
+        alert('가입 확인 메일을 보냈어요.\n메일함의 링크를 눌러 인증을 완료한 뒤 로그인해주세요.');
+        setAuthMode('login');
+      }
+    } else {
+      const { error } = await auth.signInWithPassword({ email, password });
+      if (error) {
+        showAuthError(translateAuthError(error));
+        return;
+      }
+      closeAuthModal();
+      // 로그인 성공 시 onAuthStateChange가 데이터 로드 + UI 갱신을 처리함
+    }
+  } finally {
+    submitBtn.disabled = false;
+  }
+}
+
+/* --- 로그아웃 --- */
+async function handleLogout() {
+  await auth.signOut();
+  // onAuthStateChange가 비로그인 상태로 UI/데이터를 갱신함
+}
+
+/* --- 인증 관련 이벤트 바인딩 --- */
+document.getElementById('authTriggerBtn').addEventListener('click', openAuthModal);
+document.getElementById('authCancelBtn').addEventListener('click', closeAuthModal);
+document.getElementById('authSubmitBtn').addEventListener('click', submitAuth);
+document.getElementById('logoutBtn').addEventListener('click', handleLogout);
+
+document.getElementById('loginTab').addEventListener('click', () => setAuthMode('login'));
+document.getElementById('signupTab').addEventListener('click', () => setAuthMode('signup'));
+
+document.getElementById('authModalBackdrop').addEventListener('click', (e) => {
+  if (e.target.id === 'authModalBackdrop') closeAuthModal();
 });
 
-document.getElementById('adminLogout').addEventListener('click', exitAdminMode);
+['authEmail', 'authPassword', 'authPasswordConfirm'].forEach(id => {
+  document.getElementById(id).addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      submitAuth();
+    }
+  });
+});
 
 
 /* ============================================================
    15. 데이터 백업/복원 (JSON 내보내기/가져오기)
-   - 다른 컴퓨터로 데이터를 옮기는 용도 (집 ↔ 회사)
-   - 내보내기: 현재 library를 JSON 파일로 다운로드
-   - 가져오기: JSON 파일 선택 → 미리보기 → 병합 또는 덮어쓰기
+   - 내보내기: 현재 화면의 library를 JSON 파일로 다운로드
+   - 가져오기: JSON 파일 → 미리보기 → 클라우드 DB로 병합/덮어쓰기
    ============================================================ */
 
 const BACKUP_THRESHOLD = 10;       // 영상 N개 이상이면 백업 권장 점 표시
-let pendingImport = null;          // 가져오기 대기 중인 영상 배열 (모달 열려 있을 때만)
+let pendingImport = null;          // 가져오기 대기 중인 영상 배열
 let pendingImportMeta = null;      // 미리보기에 표시할 파일 메타 정보
 
-/**
- * 영상 ≥ BACKUP_THRESHOLD이면 내보내기 버튼 옆에 백업 권장 점 표시
- */
 function updateBackupDot() {
   const dot = document.getElementById('backupDot');
   if (!dot) return;
@@ -536,7 +780,6 @@ function updateBackupDot() {
 
 /**
  * 내보내기: 현재 library를 JSON 파일로 다운로드
- * 파일명: youtube-library-backup-YYYY-MM-DD.json
  */
 function exportToJson() {
   const now = new Date();
@@ -547,10 +790,7 @@ function exportToJson() {
     videos: library
   };
 
-  // JSON 문자열 (들여쓰기 2칸으로 사람이 읽기 쉽게)
   const json = JSON.stringify(data, null, 2);
-
-  // Blob → 임시 URL → 가짜 <a> 클릭으로 다운로드
   const blob = new Blob([json], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -559,19 +799,17 @@ function exportToJson() {
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
-  URL.revokeObjectURL(url);          // 메모리 해제
+  URL.revokeObjectURL(url);
 }
 
 /**
- * 가져오기: 사용자가 선택한 파일을 읽고 검증한 후 미리보기 모달 띄움
+ * 가져오기: 선택한 파일을 읽고 검증한 후 미리보기 모달 띄움
  */
 function handleImportFile(file) {
   const reader = new FileReader();
   reader.onload = (e) => {
     try {
       const data = JSON.parse(e.target.result);
-
-      // 검증: data.videos가 배열이어야 함
       if (!data || !Array.isArray(data.videos)) {
         alert('영상 데이터가 없어요. (videos 배열이 없거나 잘못된 형식이에요.)');
         return;
@@ -580,8 +818,6 @@ function handleImportFile(file) {
         alert('영상 데이터가 없어요. (파일은 비어있어요.)');
         return;
       }
-
-      // 미리보기에 사용할 정보 저장 후 모달 열기
       pendingImport = data.videos;
       pendingImportMeta = {
         fileName: file.name,
@@ -599,14 +835,10 @@ function handleImportFile(file) {
   reader.readAsText(file);
 }
 
-/**
- * 가져오기 미리보기 모달 - 영상 개수와 파일 정보 표시
- */
 function openImportPreview() {
   const modal = document.getElementById('importModalBackdrop');
   const summary = document.getElementById('importSummary');
 
-  // 파일 메타 정보 (선택)
   let metaLine = '';
   if (pendingImportMeta && pendingImportMeta.exportedAt) {
     const exportedDate = new Date(pendingImportMeta.exportedAt);
@@ -619,58 +851,107 @@ function openImportPreview() {
 
   summary.innerHTML = `
     <p>이 파일에는 <strong>${pendingImport.length}개</strong>의 영상이 있어요.</p>
-    <p>현재 서재에는 <strong>${library.length}개</strong>가 있어요. 어떻게 처리할까요?</p>
+    <p>현재 책장에는 <strong>${library.length}개</strong>가 있어요. 어떻게 처리할까요?</p>
     ${metaLine}
   `;
 
   modal.classList.add('active');
 }
 
-/**
- * 가져오기 모달 닫기 + 상태 정리
- */
 function closeImportModal() {
   document.getElementById('importModalBackdrop').classList.remove('active');
   pendingImport = null;
   pendingImportMeta = null;
-  // 같은 파일을 다시 선택할 수 있도록 file input 초기화
   document.getElementById('importFileInput').value = '';
 }
 
 /**
- * 병합: videoId 기준 중복 제거 후 새 영상만 추가
+ * 병합: videoId 기준 중복 제거 후, 새 영상만 클라우드 DB로 insert
  */
-function importMerge() {
+async function importMerge() {
   if (!pendingImport) return;
+  if (!currentUser) {
+    alert('가져오려면 로그인이 필요해요.');
+    return;
+  }
+
+  // 현재 책장에 없는 영상만 추림
   const existingIds = new Set(library.map(v => v.videoId));
   const newOnes = pendingImport.filter(v => v.videoId && !existingIds.has(v.videoId));
-  library = [...newOnes, ...library];
-  finalizeImport(`${newOnes.length}개의 새 영상을 가져왔어요. (중복 ${pendingImport.length - newOnes.length}개는 건너뛰었어요.)`);
+
+  if (newOnes.length === 0) {
+    closeImportModal();
+    alert('추가할 새 영상이 없어요. (모두 이미 책장에 있어요.)');
+    return;
+  }
+
+  const rows = newOnes.map(v => ({
+    user_id: currentUser.id,
+    video_id: v.videoId,
+    title: v.title,
+    channel: v.channel || null,
+    category: v.category || null,
+    note: v.note || null
+  }));
+
+  try {
+    const { error } = await window.supabaseClient.from('videos').insert(rows);
+    if (error) throw error;
+  } catch (e) {
+    handleSupabaseError(e, '가져오기에 실패했어요');
+    return;
+  }
+
+  await finalizeImport(`${newOnes.length}개의 새 영상을 가져왔어요. (중복 ${pendingImport.length - newOnes.length}개는 건너뛰었어요.)`);
 }
 
 /**
- * 덮어쓰기: 한 번 더 confirm 후 전체 교체
+ * 덮어쓰기: confirm 후, 현재 사용자의 영상을 모두 삭제하고 새로 insert
  */
-function importReplace() {
+async function importReplace() {
   if (!pendingImport) return;
+  if (!currentUser) {
+    alert('가져오려면 로그인이 필요해요.');
+    return;
+  }
+
   const ok = confirm(
-    `현재 영상 ${library.length}개를 모두 삭제하고 새 ${pendingImport.length}개로 교체합니다.\n\n계속하시겠어요?`
+    `현재 책장의 영상 ${library.length}개를 모두 삭제하고 새 ${pendingImport.length}개로 교체합니다.\n\n계속하시겠어요?`
   );
   if (!ok) return;
-  library = [...pendingImport];
-  finalizeImport(`${pendingImport.length}개 영상으로 교체했어요.`);
+
+  const rows = pendingImport.map(v => ({
+    user_id: currentUser.id,
+    video_id: v.videoId,
+    title: v.title,
+    channel: v.channel || null,
+    category: v.category || null,
+    note: v.note || null
+  }));
+
+  try {
+    // 현재 사용자의 모든 영상 삭제
+    const { error: delError } = await window.supabaseClient
+      .from('videos').delete().eq('user_id', currentUser.id);
+    if (delError) throw delError;
+    // 새 영상 insert
+    const { error: insError } = await window.supabaseClient
+      .from('videos').insert(rows);
+    if (insError) throw insError;
+  } catch (e) {
+    handleSupabaseError(e, '가져오기에 실패했어요');
+    return;
+  }
+
+  await finalizeImport(`${pendingImport.length}개 영상으로 교체했어요.`);
 }
 
 /**
- * 가져오기 마무리: 저장 + 모달 닫기 + 모든 UI 갱신 + 알림
+ * 가져오기 마무리: 모달 닫기 + 데이터 다시 로드 + 알림
  */
-function finalizeImport(message) {
-  saveLibrary();
+async function finalizeImport(message) {
   closeImportModal();
-  renderMeta();
-  renderCategories();
-  renderVideos();
-  updateBackupDot();
+  await refreshLibrary();
   alert(message);
 }
 
@@ -682,34 +963,24 @@ document.getElementById('importBtn').addEventListener('click', () => {
   document.getElementById('importFileInput').click();
 });
 
-// 파일 선택 시
 document.getElementById('importFileInput').addEventListener('change', (e) => {
   const file = e.target.files[0];
   if (file) handleImportFile(file);
 });
 
-// 가져오기 모달의 버튼들
 document.getElementById('importCancelBtn').addEventListener('click', closeImportModal);
 document.getElementById('importMergeBtn').addEventListener('click', importMerge);
 document.getElementById('importReplaceBtn').addEventListener('click', importReplace);
 
-// 모달 백드롭 클릭 → 닫기
 document.getElementById('importModalBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'importModalBackdrop') closeImportModal();
 });
 
 
 /* ============================================================
-   16. 초기 렌더 + 관리자 모드 체크
+   16. 초기 화면
+   - 데이터 로드와 렌더링은 14번의 onAuthStateChange → refreshLibrary가
+     페이지 로드 직후 자동으로 처리함
+   - 여기서는 그 전까지 보일 로딩 표시만 띄워둠
    ============================================================ */
-saveLibrary();        // 첫 방문 시 샘플 데이터를 localStorage에도 기록
-checkAdminMode();     // sessionStorage 기준으로 관리자 모드 복원
-renderMeta();
-renderCategories();
-renderVideos();
-updateBackupDot();    // 영상 개수 기준 백업 점 갱신
-
-// URL에 ?admin=true 있으면 비밀번호 모달 자동 열기
-if (new URLSearchParams(window.location.search).get('admin') === 'true') {
-  openPasswordModal();
-}
+showLoading();

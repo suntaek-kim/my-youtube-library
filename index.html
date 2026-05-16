@@ -18,7 +18,8 @@
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
   <!-- 우리 스크립트 (defer: HTML 파싱 후 문서 순서대로 실행)
-       supabase-client.js가 반드시 script.js보다 먼저 와야 함 -->
+       site-config.js와 supabase-client.js가 반드시 script.js보다 먼저 와야 함 -->
+  <script src="site-config.js" defer></script>
   <script src="supabase-client.js" defer></script>
   <script src="script.js" defer></script>
 </head>
@@ -95,11 +96,15 @@
   </div>
 
   <!-- ============================================
-       관리자 컨트롤 (관리자 모드일 때만 표시)
-       우측 상단 fixed - 도구 그룹 + 상태 배지
+       헤더 우측 인증 컨트롤 (항상 표시)
+       비로그인: 회원가입/로그인 버튼
+       로그인:   도구 그룹 + 사용자 배지
        ============================================ -->
   <div class="admin-controls">
-    <!-- 도구 그룹: 내보내기 / 가져오기 -->
+    <!-- 비로그인 시: 회원가입/로그인 버튼 -->
+    <button type="button" class="auth-trigger-btn" id="authTriggerBtn">로그인 / 회원가입</button>
+
+    <!-- 로그인 시: 도구 그룹 (내보내기 / 가져오기) -->
     <div class="admin-tools" id="adminTools">
       <button type="button" class="admin-tool-btn" id="exportBtn" title="JSON으로 내보내기">
         <span class="emoji" aria-hidden="true">📤</span>
@@ -115,12 +120,12 @@
       <input type="file" id="importFileInput" accept=".json,application/json" hidden>
     </div>
 
-    <!-- 상태 배지: 모드 표시 + 로그아웃 -->
-    <div class="admin-badge" id="adminBadge">
-      <span class="admin-badge-icon" aria-hidden="true">🔐</span>
-      <span class="admin-badge-label">관리자 모드</span>
+    <!-- 로그인 시: 사용자 정보 배지 -->
+    <div class="admin-badge" id="userBadge">
+      <span class="admin-badge-icon" aria-hidden="true">👤</span>
+      <span class="user-greeting">안녕하세요, <strong id="userName"></strong>님</span>
       <span class="admin-badge-divider" aria-hidden="true">|</span>
-      <button type="button" class="admin-badge-logout" id="adminLogout">로그아웃</button>
+      <button type="button" class="admin-badge-logout" id="logoutBtn">로그아웃</button>
     </div>
   </div>
 
@@ -178,23 +183,41 @@
   </div>
 
   <!-- ============================================
-       비밀번호 입력 모달 (관리자 모드 진입)
-       ?admin=true 또는 Ctrl+Shift+A로 트리거
+       인증 모달 (로그인 / 회원가입)
+       헤더의 '회원가입 / 로그인' 버튼으로 열림
        ============================================ -->
-  <div class="modal-backdrop" id="passwordModalBackdrop">
-    <div class="modal password-modal">
-      <h2 class="modal-title">관리자 모드</h2>
-      <p class="modal-subtitle">비밀번호를 입력하세요</p>
-
-      <div class="form-group">
-        <label for="passwordInput">비밀번호</label>
-        <input type="password" id="passwordInput" placeholder="••••••••" autocomplete="off">
-        <div class="error-message" id="passwordError"></div>
+  <div class="modal-backdrop" id="authModalBackdrop">
+    <div class="modal">
+      <!-- 로그인 / 회원가입 탭 -->
+      <div class="auth-tabs">
+        <button type="button" class="auth-tab active" id="loginTab">로그인</button>
+        <button type="button" class="auth-tab" id="signupTab">회원가입</button>
       </div>
 
+      <div class="form-group">
+        <label for="authEmail">이메일</label>
+        <input type="email" id="authEmail" placeholder="you@example.com"
+               autocomplete="email" required>
+      </div>
+
+      <div class="form-group">
+        <label for="authPassword">비밀번호</label>
+        <input type="password" id="authPassword" placeholder="6자 이상"
+               autocomplete="current-password" minlength="6" required>
+      </div>
+
+      <!-- 회원가입 모드에서만 보임 (JS가 display 토글) -->
+      <div class="form-group" id="authConfirmGroup" style="display:none;">
+        <label for="authPasswordConfirm">비밀번호 확인</label>
+        <input type="password" id="authPasswordConfirm" placeholder="비밀번호를 다시 입력"
+               autocomplete="new-password">
+      </div>
+
+      <div class="error-message" id="authError"></div>
+
       <div class="modal-actions">
-        <button class="btn" id="passwordCancelBtn">취소</button>
-        <button class="btn btn-primary" id="passwordSubmitBtn">확인</button>
+        <button type="button" class="btn" id="authCancelBtn">취소</button>
+        <button type="button" class="btn btn-primary" id="authSubmitBtn">로그인</button>
       </div>
     </div>
   </div>

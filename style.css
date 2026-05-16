@@ -792,38 +792,64 @@ h1.title .accent::after {
 
 
 /* ============================================================
-   15. 관리자 모드 - 배지 + 가시성 제어
-   - 평소(방문자 모드): + FAB, 카드 편집/삭제, 배지 모두 숨김
-   - body.admin-mode 시: 모두 표시
+   15. 사용자 인증 - 가시성 제어 + 헤더 영역 + 인증 탭
+   - 비로그인: 회원가입/로그인 버튼만 표시
+   - 로그인(body.logged-in): + FAB, 카드 편집/삭제, 도구, 사용자 배지 표시
    - body 클래스 하나만 토글하면 모든 UI가 알아서 바뀜
    ============================================================ */
 
-/* 평소(방문자 모드)엔 모두 숨김 */
+/* + FAB와 카드 편집/삭제: 로그인 시에만 표시 */
 .add-fab,
-.card-actions,
-.admin-controls {
+.card-actions {
   display: none;
 }
+body.logged-in .add-fab      { display: flex; }
+body.logged-in .card-actions { display: flex; }
 
-/* 관리자 모드일 때만 표시 (specificity가 더 높아 위 규칙을 이김) */
-body.admin-mode .add-fab        { display: flex; }
-body.admin-mode .card-actions   { display: flex; }
-body.admin-mode .admin-controls { display: flex; }
-
-/* 관리자 컨트롤 컨테이너 (우측 상단 fixed)
-   안에 도구 그룹과 상태 배지가 가로로 정렬됨 */
+/* 헤더 우측 컨트롤 컨테이너 (항상 표시 — 안의 내용이 상태에 따라 바뀜) */
 .admin-controls {
   position: fixed;
   top: 20px;
   right: 20px;
+  display: flex;
   gap: 8px;
   align-items: center;
   z-index: 60;                     /* FAB(50)보다 위, 모달(100)보다 아래 */
 }
 
-/* 관리자 배지 (알약 모양, 모드 표시 + 로그아웃) */
+/* 도구 그룹·사용자 배지는 로그인 시에만 / 로그인 버튼은 비로그인 시에만 */
+.admin-tools,
 .admin-badge {
+  display: none;
+}
+body.logged-in .admin-tools      { display: inline-flex; }
+body.logged-in .admin-badge      { display: inline-flex; }
+body.logged-in .auth-trigger-btn { display: none; }
+
+/* 회원가입/로그인 유도 버튼 (비로그인 시, 블루 강조) */
+.auth-trigger-btn {
   display: inline-flex;
+  align-items: center;
+  padding: 9px 18px;
+  background: var(--primary-strong);
+  border: 1px solid var(--primary-strong);
+  border-radius: 999px;
+  box-shadow: var(--shadow-normal-small);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: white;
+  letter-spacing: -0.01em;
+  transition: background 150ms var(--ease), border-color 150ms var(--ease);
+}
+.auth-trigger-btn:hover {
+  background: var(--primary-heavy);
+  border-color: var(--primary-heavy);
+}
+
+/* 사용자 정보 배지 (알약 모양, 로그인 시) */
+.admin-badge {
   align-items: center;
   gap: 8px;
   padding: 8px 14px;
@@ -841,8 +867,13 @@ body.admin-mode .admin-controls { display: flex; }
   line-height: 1;
 }
 
-.admin-badge-label {
+/* "안녕하세요, OOO님" — 이름 부분만 블루 강조 */
+.user-greeting {
   letter-spacing: -0.01em;
+}
+.user-greeting strong {
+  font-weight: 700;
+  color: var(--primary-strong);
 }
 
 .admin-badge-divider {
@@ -867,12 +898,48 @@ body.admin-mode .admin-controls { display: flex; }
   text-decoration: underline;
 }
 
+/* 인증 모달 - 로그인/회원가입 탭 (카테고리 탭과 같은 밑줄 패턴) */
+.auth-tabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 28px;
+  border-bottom: 1px solid var(--line-normal);
+}
+.auth-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 12px 0;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--label-alternative);
+  cursor: pointer;
+  position: relative;
+  transition: color 150ms var(--ease);
+}
+.auth-tab:hover {
+  color: var(--label-strong);
+}
+.auth-tab.active {
+  color: var(--primary-strong);
+  font-weight: 700;
+}
+.auth-tab.active::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0;
+  bottom: -1px;
+  height: 2px;
+  background: var(--primary-strong);
+}
+
 
 /* ============================================================
-   16. 비밀번호 입력 모달 - 흔들림 애니메이션 + 에러 메시지
+   16. 인증 모달 - 흔들림 애니메이션 + 에러 메시지
    ============================================================ */
 
-/* 잘못된 비밀번호 입력 시 input에 0.4초 동안 흔들림 효과 */
+/* 잘못된 입력 시 input에 0.4초 동안 흔들림 효과 */
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
   20%      { transform: translateX(-8px); }
@@ -1021,7 +1088,7 @@ body.admin-mode .admin-controls { display: flex; }
   .add-fab       { right: 20px; bottom: 20px; }
   .modal         { padding: 28px; }
 
-  /* 좁은 화면에선 관리자 도구/배지의 텍스트 숨기고 이모지·아이콘만 */
+  /* 좁은 화면에선 관리자 도구 텍스트와 인사말 숨기고 이모지·아이콘만 */
   .admin-tool-btn .label  { display: none; }
-  .admin-badge-label      { display: none; }
+  .user-greeting          { display: none; }
 }
