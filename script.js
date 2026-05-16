@@ -623,7 +623,6 @@ async function migrateLocalStorageToSupabase() {
 auth.onAuthStateChange((event, session) => {
   currentUser = session?.user ?? null;
   updateAuthUI();
-  console.log('[화면 모드]', getViewMode(), currentUser ? `· ${currentUser.email}` : '');
 
   // Supabase 호출은 콜백 밖(다음 틱)에서 — 데드락 방지
   setTimeout(async () => {
@@ -1019,7 +1018,6 @@ function showToast(message, duration = 3000) {
  * ※ DB의 id는 숫자, 앱 내부 id는 문자열 → String()으로 변환해 비교해야 함.
  */
 function handleRealtimeChange(payload) {
-  console.log('[실시간] 변경 감지:', payload);
   const eventType = payload.eventType;
   const newRecord = payload.new;
   const oldRecord = payload.old;

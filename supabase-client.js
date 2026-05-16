@@ -2,6 +2,11 @@
    Supabase 클라이언트 초기화
    - 이 사이트와 Supabase 백엔드를 잇는 연결 진입점
    - script.js보다 먼저 로드되어 window.supabaseClient를 준비함
+
+   [보안 모델]
+   anon key는 공개 가능한 키입니다.
+   실제 보안은 Supabase RLS 정책으로 강제됩니다.
+   자세한 보안 모델은 README.md 참조.
    ============================================================ */
 
 /* Supabase 프로젝트 연결 정보
