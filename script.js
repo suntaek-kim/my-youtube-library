@@ -22,6 +22,8 @@ let currentCategory = '전체';   // 현재 선택된 카테고리
 let currentSearch = '';         // 현재 검색어
 let editingId = null;           // 편집 중인 영상 id (없으면 null = 새로 추가 모드)
 let currentUser = null;         // 로그인한 사용자 (14번 인증 섹션에서 갱신, 비로그인이면 null)
+let currentChannel = null;      // 현재 Realtime 구독 채널 (16번 실시간 섹션에서 사용)
+let lastSelfActionAt = 0;       // 본인이 마지막으로 추가/수정/삭제한 시각 (실시간 토스트 중복 방지)
 
 /**
  * fromRow(row): Supabase 행(snake_case)을 앱 내부 형식(camelCase)으로 변환.
@@ -396,6 +398,7 @@ async function saveVideo() {
 
   const saveBtn = document.getElementById('saveBtn');
   saveBtn.disabled = true;          // 중복 제출 방지
+  lastSelfActionAt = Date.now();    // 본인 작업 시각 기록 (실시간 토스트 중복 방지)
   try {
     if (editingId) {
       // 편집: 기존 행을 update
@@ -428,6 +431,7 @@ async function deleteVideo(id) {
   const card = document.querySelector(`.video-card[data-id="${id}"]`);
   if (card) card.classList.add('deleting');   // 페이드 아웃 시작
 
+  lastSelfActionAt = Date.now();              // 본인 작업 시각 기록 (실시간 토스트 중복 방지)
   try {
     const { error } = await window.supabaseClient
       .from('videos')
@@ -630,6 +634,8 @@ auth.onAuthStateChange((event, session) => {
     // 데이터 (재)로드 + 화면 렌더링
     // - 로그인: 현재 사용자의 영상 / 로그아웃: 사이트 주인의 영상
     await refreshLibrary();
+    // 표시 대상이 바뀌었을 수 있으니 실시간 구독도 (재)설정
+    await setupRealtimeSubscription();
   }, 0);
 });
 
@@ -894,6 +900,7 @@ async function importMerge() {
     note: v.note || null
   }));
 
+  lastSelfActionAt = Date.now();   // 본인 작업 시각 기록 (실시간 토스트 중복 방지)
   try {
     const { error } = await window.supabaseClient.from('videos').insert(rows);
     if (error) throw error;
@@ -929,6 +936,7 @@ async function importReplace() {
     note: v.note || null
   }));
 
+  lastSelfActionAt = Date.now();   // 본인 작업 시각 기록 (실시간 토스트 중복 방지)
   try {
     // 현재 사용자의 모든 영상 삭제
     const { error: delError } = await window.supabaseClient
@@ -978,7 +986,113 @@ document.getElementById('importModalBackdrop').addEventListener('click', (e) => 
 
 
 /* ============================================================
-   16. 초기 화면
+   16. 실시간 동기화 (Supabase Realtime)
+   - videos 테이블의 변경(INSERT/UPDATE/DELETE)을 구독
+   - 다른 기기에서 영상을 바꾸면 현재 화면이 새로고침 없이 갱신됨
+   ============================================================ */
+
+/**
+ * showToast(message, duration): 우상단에 잠깐 떴다 사라지는 알림.
+ * 여러 개는 toast-container(flex column) 안에서 세로로 쌓임.
+ */
+function showToast(message, duration = 3000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+  const toast = document.createElement('div');
+  toast.className = 'toast';
+  toast.textContent = message;
+  container.appendChild(toast);
+  // duration 후: 사라지는 애니메이션 실행 → 끝나면 DOM에서 제거
+  setTimeout(() => {
+    toast.classList.add('toast-out');
+    toast.addEventListener('animationend', () => toast.remove());
+  }, duration);
+}
+
+/**
+ * handleRealtimeChange(payload): 실시간 변경 이벤트를 받아 library와 화면을 갱신.
+ * - INSERT: 새 영상 추가 (이미 있으면 무시 — 본인이 추가한 경우 중복 방지)
+ * - UPDATE: 해당 영상 갱신
+ * - DELETE: 해당 영상 제거
+ * - 본인이 방금(3초 내) 한 변경이면 토스트는 생략 (데이터 반영은 그대로)
+ *
+ * ※ DB의 id는 숫자, 앱 내부 id는 문자열 → String()으로 변환해 비교해야 함.
+ */
+function handleRealtimeChange(payload) {
+  console.log('[실시간] 변경 감지:', payload);
+  const eventType = payload.eventType;
+  const newRecord = payload.new;
+  const oldRecord = payload.old;
+
+  // 본인이 방금 한 작업이면 토스트는 건너뜀 (데이터 동기화는 진행)
+  const isSelfRecent = (Date.now() - lastSelfActionAt) < 3000;
+
+  if (eventType === 'INSERT') {
+    const newId = String(newRecord.id);
+    if (library.some(v => v.id === newId)) return;   // 이미 있으면 무시 (중복 방지)
+    library.unshift(fromRow(newRecord));             // 최신이 위로
+    if (!isSelfRecent) showToast('새 영상이 추가됐어요 ✨');
+  } else if (eventType === 'UPDATE') {
+    const idx = library.findIndex(v => v.id === String(newRecord.id));
+    if (idx < 0) return;                             // 화면에 없는 항목이면 무시
+    library[idx] = fromRow(newRecord);
+  } else if (eventType === 'DELETE') {
+    const oldId = String(oldRecord.id);
+    if (!library.some(v => v.id === oldId)) return;  // 이미 없으면 무시
+    library = library.filter(v => v.id !== oldId);
+    if (!isSelfRecent) showToast('영상이 삭제됐어요');
+  }
+
+  // 변경 사항을 화면에 반영 (검색·카테고리 필터는 그대로 적용됨)
+  renderCategories();
+  renderVideos();
+}
+
+/**
+ * setupRealtimeSubscription(): 현재 표시 대상 사용자의 videos 변경을 구독.
+ * - 인증 상태가 바뀌면 기존 채널을 정리하고 새 user_id로 다시 구독
+ * - onAuthStateChange의 setTimeout 블록 안에서 호출됨 (데드락 방지)
+ */
+async function setupRealtimeSubscription() {
+  // 기존 구독이 있으면 먼저 정리 (로그인/로그아웃으로 표시 대상이 바뀌었을 때)
+  if (currentChannel) {
+    await window.supabaseClient.removeChannel(currentChannel);
+    currentChannel = null;
+  }
+
+  // 누구의 영상을 구독할지 (loadLibrary와 동일한 기준)
+  const targetUserId = currentUser?.id || window.OWNER_USER_ID;
+  if (!targetUserId) return;
+
+  console.log('[실시간] 구독 시작:', targetUserId);
+
+  currentChannel = window.supabaseClient
+    .channel('videos-realtime')
+    .on(
+      'postgres_changes',
+      {
+        event: '*',                            // INSERT/UPDATE/DELETE 모두
+        schema: 'public',
+        table: 'videos',
+        filter: `user_id=eq.${targetUserId}`   // 표시 대상 사용자의 영상만
+      },
+      (payload) => handleRealtimeChange(payload)
+    )
+    .subscribe((status) => {
+      console.log('[실시간] 구독 상태:', status);
+    });
+}
+
+// 페이지를 떠날 때 실시간 채널 정리 (메모리 누수 방지)
+window.addEventListener('beforeunload', () => {
+  if (currentChannel) {
+    window.supabaseClient.removeChannel(currentChannel);
+  }
+});
+
+
+/* ============================================================
+   17. 초기 화면
    - 데이터 로드와 렌더링은 14번의 onAuthStateChange → refreshLibrary가
      페이지 로드 직후 자동으로 처리함
    - 여기서는 그 전까지 보일 로딩 표시만 띄워둠

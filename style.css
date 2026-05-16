@@ -1065,7 +1065,54 @@ body.logged-in .auth-trigger-btn { display: none; }
 
 
 /* ============================================================
-   19. 반응형
+   19. 토스트 알림 (실시간 변경 시 우상단에 잠깐 표시)
+   ============================================================ */
+
+/* 토스트들이 세로로 쌓이는 컨테이너
+   - 우상단이지만 관리자 컨트롤(top:20px)과 겹치지 않게 그 아래에 둠 */
+.toast-container {
+  position: fixed;
+  top: 76px;
+  right: 20px;
+  z-index: 90;                /* FAB·배지보다 위, 모달(100)보다 아래 */
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;       /* 토스트가 뒤쪽 클릭을 가로채지 않도록 */
+}
+
+/* 개별 토스트 (어두운 배경 + 흰 글씨) */
+.toast {
+  background: var(--label-strong);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 11px 16px;
+  border-radius: var(--radius-10);
+  box-shadow: var(--shadow-normal-medium);
+  letter-spacing: -0.01em;
+  max-width: 280px;
+  animation: toastIn 0.3s var(--ease);   /* 등장 애니메이션 */
+}
+
+/* 사라질 때 (.toast-out 클래스가 붙으면) */
+.toast.toast-out {
+  animation: toastOut 0.3s var(--ease) forwards;
+}
+
+@keyframes toastIn {
+  from { opacity: 0; transform: translateX(20px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toastOut {
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(20px); }
+}
+
+
+/* ============================================================
+   20. 반응형
    - 태블릿(920px 이하): 2열 그리드, 헤더 축소
    - 모바일(600px 이하): 1열, 카테고리 가로 스크롤, 도구 아이콘만
    ============================================================ */
