@@ -14,7 +14,12 @@
   <!-- 외부 스타일시트 -->
   <link rel="stylesheet" href="style.css">
 
-  <!-- 외부 스크립트 (defer: HTML 파싱이 끝난 뒤 실행) -->
+  <!-- Supabase JS 라이브러리 (createClient 함수를 window.supabase로 제공) -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+  <!-- 우리 스크립트 (defer: HTML 파싱 후 문서 순서대로 실행)
+       supabase-client.js가 반드시 script.js보다 먼저 와야 함 -->
+  <script src="supabase-client.js" defer></script>
   <script src="script.js" defer></script>
 </head>
 <body>
