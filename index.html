@@ -5,6 +5,33 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>나의 유튜브 서재</title>
 
+  <!-- ============================================
+       PWA (홈 화면 설치 / 오프라인 캐싱)
+       경로는 상대경로 — 도메인이 바뀌어도 작동
+       ============================================ -->
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#1c1917">
+
+  <!-- iOS Safari 홈 화면 앱 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MyCuration">
+  <link rel="apple-touch-icon" href="icons/icon.svg">
+
+  <!-- Favicon (탭 아이콘) -->
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+
+  <!-- Service Worker 등록 (오프라인 캐싱) -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('service-worker.js')
+          .then(reg => console.log('SW 등록됨:', reg.scope))
+          .catch(err => console.error('SW 등록 실패:', err));
+      });
+    }
+  </script>
+
   <!-- Pretendard Variable (Wanted 디자인 시스템 표준 폰트) -->
   <link rel="stylesheet"
     href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css">

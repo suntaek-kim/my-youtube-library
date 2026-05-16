@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- 배경: 따뜻한 차콜, 살짝 둥근 사각형 -->
+  <rect width="512" height="512" rx="48" fill="#1c1917"/>
+  <!-- "MC" 모노그램: 크림색, 모던 세리프, 이탤릭, 굵게 -->
+  <text x="252" y="266"
+        font-family="Fraunces, 'Playfair Display', Georgia, 'Times New Roman', serif"
+        font-size="252" font-weight="800" font-style="italic"
+        fill="#f4f1ea" text-anchor="middle" dominant-baseline="central">MC</text>
+</svg>

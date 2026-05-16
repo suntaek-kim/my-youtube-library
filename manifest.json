@@ -1,0 +1,19 @@
+{
+  "name": "MyCuration - 나의 유튜브 서재",
+  "short_name": "MyCuration",
+  "description": "내가 사랑하는 영상들의 디지털 서재",
+  "start_url": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#f4f1ea",
+  "theme_color": "#1c1917",
+  "lang": "ko",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
