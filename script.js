@@ -747,7 +747,6 @@ async function handleLogout() {
 /* --- 인증 관련 이벤트 바인딩 --- */
 document.getElementById('authTriggerBtn').addEventListener('click', openAuthModal);
 document.getElementById('authCancelBtn').addEventListener('click', closeAuthModal);
-document.getElementById('authSubmitBtn').addEventListener('click', submitAuth);
 document.getElementById('logoutBtn').addEventListener('click', handleLogout);
 
 document.getElementById('loginTab').addEventListener('click', () => setAuthMode('login'));
@@ -757,13 +756,13 @@ document.getElementById('authModalBackdrop').addEventListener('click', (e) => {
   if (e.target.id === 'authModalBackdrop') closeAuthModal();
 });
 
-['authEmail', 'authPassword', 'authPasswordConfirm'].forEach(id => {
-  document.getElementById(id).addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      submitAuth();
-    }
-  });
+/* 폼 제출 = 로그인/회원가입 (제출 버튼 클릭·Enter 키 모두 이 한 경로로 모임)
+   - index.html의 #authSubmitBtn은 type="submit", #authForm으로 감싸져 있음
+   - 이 'submit' 이벤트가 발생해야 브라우저 비밀번호 매니저가 자격증명을 저장함
+   - e.preventDefault()로 페이지 reload만 막고, 실제 처리는 submitAuth()가 담당 */
+document.getElementById('authForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  submitAuth();
 });
 
 
