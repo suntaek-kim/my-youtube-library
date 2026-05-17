@@ -7,7 +7,7 @@
 
 // 캐시 버전 — 캐시할 파일이 바뀌면 v2, v3... 으로 올리면 옛 캐시가 정리됨
 // ※ index.html·CSS·JS 등을 수정·배포할 때마다 이 숫자를 반드시 올릴 것!
-const CACHE_NAME = 'mycuration-v2';
+const CACHE_NAME = 'mycuration-v3';
 
 // 미리 캐시할 정적 파일 목록 (같은 출처의 앱 파일만)
 const ASSETS = [
